@@ -30,13 +30,7 @@ html{scroll-behavior:smooth}
 body{font-family:'Nunito',sans-serif;background:#FAFAF6;color:#0D1F3C;line-height:1.65;-webkit-font-smoothing:antialiased}
 :root{--serif:'Lora',Georgia,serif;--sans:'Nunito',sans-serif}
 
-/* ── NAV ── */
-.nav{
-  position:fixed;top:0;left:0;right:0;z-index:300;height:66px;
-  display:flex;align-items:center;justify-content:space-between;padding:0 2.25rem;
-  background:rgba(13,31,60,0.97);backdrop-filter:blur(16px);
-  border-bottom:1px solid rgba(201,168,76,0.18);
-}
+.nav{position:fixed;top:0;left:0;right:0;z-index:300;height:66px;display:flex;align-items:center;justify-content:space-between;padding:0 2.25rem;background:rgba(13,31,60,0.97);backdrop-filter:blur(16px);border-bottom:1px solid rgba(201,168,76,0.18);}
 .nav-brand{display:flex;align-items:center;gap:10px;cursor:pointer}
 .nav-mark{width:36px;height:36px;border-radius:9px;background:linear-gradient(135deg,#C9A84C,#E8C97A);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
 .nav-name{font-family:var(--serif);font-size:1.05rem;font-weight:600;color:white}
@@ -47,7 +41,6 @@ body{font-family:'Nunito',sans-serif;background:#FAFAF6;color:#0D1F3C;line-heigh
 .nav-tab.active{color:#E8C97A;background:rgba(201,168,76,0.13)}
 .nav-right{display:flex;gap:0.65rem;align-items:center}
 
-/* ── BUTTONS ── */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:11px 26px;border-radius:8px;font-family:var(--sans);font-size:0.875rem;font-weight:700;cursor:pointer;transition:all 0.18s;border:none;letter-spacing:0.01em}
 .btn-gold{background:linear-gradient(135deg,#C9A84C,#E8C97A);color:#0D1F3C;box-shadow:0 3px 14px rgba(201,168,76,0.32)}
 .btn-gold:hover{transform:translateY(-2px);box-shadow:0 5px 20px rgba(201,168,76,0.42)}
@@ -62,7 +55,6 @@ body{font-family:'Nunito',sans-serif;background:#FAFAF6;color:#0D1F3C;line-heigh
 .btn-block{width:100%}
 .btn:disabled{opacity:0.45;cursor:not-allowed;transform:none !important}
 
-/* ── CARDS ── */
 .card{background:white;border-radius:14px;border:1px solid #E2EAF2;box-shadow:0 2px 10px rgba(13,31,60,0.05);overflow:hidden}
 .card-p{padding:1.75rem}
 .card-p-sm{padding:1.25rem}
@@ -73,7 +65,6 @@ body{font-family:'Nunito',sans-serif;background:#FAFAF6;color:#0D1F3C;line-heigh
 .card-hover{transition:transform 0.18s,box-shadow 0.18s}
 .card-hover:hover{transform:translateY(-3px);box-shadow:0 8px 28px rgba(13,31,60,0.1)}
 
-/* ── FORMS ── */
 .form-group{margin-bottom:1.1rem}
 .form-label{display:block;font-size:0.82rem;font-weight:700;color:#0D1F3C;margin-bottom:0.4rem;letter-spacing:0.01em}
 .form-label span{color:#7A8BA8;font-weight:400;font-size:0.75rem;margin-left:4px}
@@ -88,17 +79,8 @@ body{font-family:'Nunito',sans-serif;background:#FAFAF6;color:#0D1F3C;line-heigh
 .curr::before{content:'$';position:absolute;left:13px;top:50%;transform:translateY(-50%);color:#7A8BA8;font-size:0.9rem;pointer-events:none;z-index:1}
 .curr .form-input{padding-left:26px}
 
-/* ── HERO ── */
-.hero{
-  min-height:100vh;padding-top:66px;
-  background:linear-gradient(155deg,#0D1F3C 0%,#162E56 45%,#1B4D3C 100%);
-  display:flex;align-items:center;position:relative;overflow:hidden;
-}
-.hero::before{
-  content:'';position:absolute;inset:0;
-  background:radial-gradient(ellipse 55% 60% at 72% 48%,rgba(201,168,76,0.11) 0%,transparent 65%),
-             radial-gradient(ellipse 35% 50% at 10% 85%,rgba(27,77,60,0.5) 0%,transparent 55%);
-}
+.hero{min-height:100vh;padding-top:66px;background:linear-gradient(155deg,#0D1F3C 0%,#162E56 45%,#1B4D3C 100%);display:flex;align-items:center;position:relative;overflow:hidden;}
+.hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 55% 60% at 72% 48%,rgba(201,168,76,0.11) 0%,transparent 65%),radial-gradient(ellipse 35% 50% at 10% 85%,rgba(27,77,60,0.5) 0%,transparent 55%);}
 .hero-inner{max-width:1160px;margin:0 auto;padding:4rem 2rem;width:100%;display:grid;grid-template-columns:1fr 1fr;gap:5rem;align-items:center;position:relative;z-index:1}
 .hero-pill{display:inline-flex;align-items:center;gap:8px;padding:5px 14px;border-radius:100px;background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.28);color:#E8C97A;font-size:0.71rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:1.4rem}
 .pill-pulse{width:6px;height:6px;border-radius:50%;background:#C9A84C;animation:pulse 2.2s ease-in-out infinite}
@@ -111,7 +93,6 @@ body{font-family:'Nunito',sans-serif;background:#FAFAF6;color:#0D1F3C;line-heigh
 .trust-item{display:flex;align-items:center;gap:7px;font-size:0.77rem;color:rgba(255,255,255,0.52)}
 .trust-dot{width:5px;height:5px;border-radius:50%;background:#C9A84C;flex-shrink:0}
 
-/* hero visual */
 .hero-visual{position:relative}
 .hero-card{background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.13);border-radius:18px;padding:1.6rem;backdrop-filter:blur(18px)}
 .hero-card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.3rem}
@@ -131,7 +112,6 @@ body{font-family:'Nunito',sans-serif;background:#FAFAF6;color:#0D1F3C;line-heigh
 .fc-label{font-size:0.7rem;color:#7A8BA8}
 .fc-val{font-size:0.88rem;font-weight:700;color:#0D1F3C}
 
-/* ── SECTION ── */
 .sec{padding:5.5rem 2rem}
 .sec-inner{max-width:1160px;margin:0 auto}
 .sec-head{text-align:center;margin-bottom:3.75rem}
@@ -140,14 +120,12 @@ body{font-family:'Nunito',sans-serif;background:#FAFAF6;color:#0D1F3C;line-heigh
 .sec-h2 em{font-style:italic;color:#C9A84C}
 .sec-sub{font-size:0.98rem;color:#3E506B;max-width:510px;margin:0 auto;line-height:1.88}
 
-/* ── FEATURES GRID ── */
 .features-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.4rem}
 .feat-card{padding:2rem;cursor:default}
 .feat-icon{width:52px;height:52px;border-radius:13px;background:linear-gradient(135deg,rgba(201,168,76,0.12),rgba(201,168,76,0.04));border:1px solid rgba(201,168,76,0.22);display:flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:1.2rem}
 .feat-title{font-family:var(--serif);font-size:1.1rem;font-weight:600;color:#0D1F3C;margin-bottom:0.5rem}
 .feat-desc{font-size:0.875rem;color:#3E506B;line-height:1.78}
 
-/* ── MISSION BANNER ── */
 .mission{background:#0D1F3C;padding:5rem 2rem}
 .mission-inner{max-width:720px;margin:0 auto;text-align:center}
 .mission-verse{font-family:var(--serif);font-size:1.5rem;font-style:italic;color:rgba(255,255,255,0.9);line-height:1.72;margin-bottom:0.85rem}
@@ -155,7 +133,6 @@ body{font-family:'Nunito',sans-serif;background:#FAFAF6;color:#0D1F3C;line-heigh
 .mission-line{width:56px;height:2px;background:#C9A84C;margin:2.25rem auto}
 .mission-body{font-size:1.02rem;color:rgba(255,255,255,0.68);line-height:1.9}
 
-/* ── INTAKE ── */
 .intake-page{min-height:100vh;padding:100px 1.5rem 4rem;background:linear-gradient(180deg,#FAFAF6 0%,white 100%)}
 .intake-wrap{max-width:740px;margin:0 auto}
 .progress-bar{height:4px;background:#E2EAF2;border-radius:100px;margin-bottom:2.25rem;overflow:hidden}
@@ -171,14 +148,12 @@ body{font-family:'Nunito',sans-serif;background:#FAFAF6;color:#0D1F3C;line-heigh
 .review-label{font-size:0.84rem;color:#7A8BA8}
 .review-val{font-size:0.84rem;font-weight:700;color:#0D1F3C}
 
-/* loading */
 .loading-page{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.5rem;padding:2rem;text-align:center;background:linear-gradient(160deg,#0D1F3C,#1B4D3C)}
 .spinner{width:52px;height:52px;border:3px solid rgba(255,255,255,0.15);border-top-color:#C9A84C;border-radius:50%;animation:spin 0.85s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .loading-h{font-family:var(--serif);font-size:1.5rem;color:white;font-weight:600}
 .loading-s{font-size:0.88rem;color:rgba(255,255,255,0.55)}
 
-/* ── DASHBOARD ── */
 .dash-layout{display:flex;min-height:100vh;padding-top:66px}
 .sidebar{width:256px;flex-shrink:0;background:#0D1F3C;position:fixed;top:66px;bottom:0;left:0;overflow-y:auto;z-index:100;padding:1.5rem 0}
 .sb-avatar{margin:0 1.1rem 1.5rem;display:flex;align-items:center;gap:10px;padding:1rem;background:rgba(255,255,255,0.06);border-radius:10px;border:1px solid rgba(255,255,255,0.1)}
@@ -195,7 +170,6 @@ body{font-family:'Nunito',sans-serif;background:#FAFAF6;color:#0D1F3C;line-heigh
 .dash-welcome{font-family:var(--serif);font-size:1.9rem;font-weight:700;color:#0D1F3C}
 .dash-sub{font-size:0.88rem;color:#7A8BA8;margin-top:0.2rem}
 
-/* stats */
 .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:1.15rem;margin:1.75rem 0}
 .stat-card{padding:1.4rem}
 .stat-icon-wrap{font-size:1.4rem;margin-bottom:0.65rem}
@@ -205,7 +179,6 @@ body{font-family:'Nunito',sans-serif;background:#FAFAF6;color:#0D1F3C;line-heigh
 .stat-val.neg{color:#B53232}
 .stat-note{font-size:0.75rem;color:#7A8BA8;margin-top:0.35rem}
 
-/* dash grids */
 .dash-grid-2{display:grid;grid-template-columns:1.3fr 1fr;gap:1.35rem;margin-bottom:1.35rem}
 .dash-grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:1.35rem;margin-bottom:1.35rem}
 .dash-col{display:flex;flex-direction:column;gap:1.35rem}
@@ -213,7 +186,6 @@ body{font-family:'Nunito',sans-serif;background:#FAFAF6;color:#0D1F3C;line-heigh
 .card-subtitle{font-size:0.75rem;color:#7A8BA8;margin-top:2px}
 .card-hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.35rem}
 
-/* budget */
 .budget-row{display:flex;align-items:center;gap:10px;margin-bottom:0.9rem}
 .bgt-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
 .bgt-label{flex:1;font-size:0.84rem;font-weight:600;color:#0D1F3C}
@@ -221,7 +193,6 @@ body{font-family:'Nunito',sans-serif;background:#FAFAF6;color:#0D1F3C;line-heigh
 .bgt-bar-fill{height:100%;border-radius:100px;transition:width 0.6s ease}
 .bgt-amount{font-size:0.82rem;font-weight:700;color:#3E506B;width:72px;text-align:right}
 
-/* debt */
 .debt-card-item{background:#FAFAF6;border-radius:10px;padding:1.1rem;margin-bottom:0.75rem}
 .debt-name{font-size:0.88rem;font-weight:700;color:#0D1F3C;margin-bottom:0.35rem}
 .debt-meta{display:flex;justify-content:space-between;font-size:0.78rem;color:#7A8BA8;margin-bottom:0.5rem}
@@ -229,7 +200,6 @@ body{font-family:'Nunito',sans-serif;background:#FAFAF6;color:#0D1F3C;line-heigh
 .debt-bar-fill{height:100%;border-radius:100px;background:linear-gradient(90deg,#162E56,#1E3D70)}
 .priority-tag{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:100px;font-size:0.68rem;font-weight:700;background:rgba(13,31,60,0.08);color:#0D1F3C;margin-bottom:0.4rem}
 
-/* savings */
 .savings-item{padding:1.25rem;margin-bottom:0.75rem}
 .sav-hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.6rem}
 .sav-name{font-size:0.9rem;font-weight:700;color:#0D1F3C}
@@ -238,7 +208,6 @@ body{font-family:'Nunito',sans-serif;background:#FAFAF6;color:#0D1F3C;line-heigh
 .sav-bar-bg{height:9px;background:#E2EAF2;border-radius:100px;overflow:hidden}
 .sav-bar-fill{height:100%;border-radius:100px;background:linear-gradient(90deg,#C9A84C,#E8C97A)}
 
-/* actions */
 .action-row{display:flex;align-items:flex-start;gap:11px;padding:1rem 0;border-bottom:1px solid #E2EAF2}
 .action-row:last-child{border-bottom:none}
 .action-cb{width:22px;height:22px;border-radius:6px;border:2px solid #E2EAF2;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;transition:all 0.15s;margin-top:1px}
@@ -251,33 +220,28 @@ body{font-family:'Nunito',sans-serif;background:#FAFAF6;color:#0D1F3C;line-heigh
 .tag-savings{background:rgba(201,168,76,0.15);color:#8B6914}
 .tag-faith{background:rgba(201,168,76,0.2);color:#7A5C10}
 
-/* scripture */
 .scripture-card{background:linear-gradient(135deg,#0D1F3C,#162E56);padding:2rem;border-radius:14px;color:white;position:relative;overflow:hidden}
 .scripture-card::before{content:'"';position:absolute;right:1.25rem;top:-0.75rem;font-family:var(--serif);font-size:9rem;color:rgba(201,168,76,0.08);line-height:1;pointer-events:none}
 .scripture-eyebrow{font-size:0.7rem;font-weight:700;letter-spacing:0.13em;text-transform:uppercase;color:#E8C97A;margin-bottom:0.75rem;position:relative}
 .scripture-text{font-family:var(--serif);font-size:1.1rem;font-style:italic;line-height:1.72;color:rgba(255,255,255,0.9);margin-bottom:0.9rem;position:relative}
 .scripture-ref{font-size:0.76rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#E8C97A}
 
-/* encourage */
 .encourage-card{background:#FDF7E8;border:1px solid #E5D08A;padding:1.75rem;border-radius:14px}
 .encourage-icon{font-size:1.75rem;margin-bottom:0.75rem}
 .encourage-text{font-size:0.9rem;color:#0D1F3C;line-height:1.82}
 
-/* devotional */
 .devot-card{padding:1.5rem}
 .devot-day{font-size:0.7rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#C9A84C;margin-bottom:0.4rem}
 .devot-title{font-family:var(--serif);font-size:1rem;font-weight:600;color:#0D1F3C;margin-bottom:0.4rem}
 .devot-text{font-size:0.83rem;color:#3E506B;line-height:1.72;margin-bottom:0.85rem}
 .devot-verse{font-family:var(--serif);font-size:0.82rem;font-style:italic;color:#0D1F3C;padding:0.75rem;background:#FAFAF6;border-radius:8px;border-left:3px solid #C9A84C;line-height:1.6}
 
-/* lesson */
 .lesson-card{padding:1.5rem}
 .lesson-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:100px;font-size:0.68rem;font-weight:700;background:rgba(13,31,60,0.07);color:#0D1F3C;margin-bottom:0.7rem;text-transform:uppercase;letter-spacing:0.08em}
 .lesson-title{font-family:var(--serif);font-size:1rem;font-weight:600;color:#0D1F3C;margin-bottom:0.4rem}
 .lesson-body{font-size:0.83rem;color:#3E506B;line-height:1.74;margin-bottom:1rem}
 .lesson-tip{padding:0.75rem;background:#EBF6F1;border-radius:8px;border-left:3px solid #1B4D3C;font-size:0.8rem;color:#1B4D3C;line-height:1.6;font-weight:500}
 
-/* checkin */
 .checkin-wrap{padding:1.5rem}
 .checkin-eyebrow{font-size:0.7rem;font-weight:700;letter-spacing:0.13em;text-transform:uppercase;color:#C9A84C;margin-bottom:1rem}
 .checkin-row{display:flex;align-items:center;gap:9px;padding:0.6rem 0;border-bottom:1px solid #E2EAF2;cursor:pointer}
@@ -289,7 +253,6 @@ body{font-family:'Nunito',sans-serif;background:#FAFAF6;color:#0D1F3C;line-heigh
 .progress-mini{height:5px;background:#E2EAF2;border-radius:100px;overflow:hidden;margin-top:0.85rem}
 .progress-mini-fill{height:100%;border-radius:100px;background:linear-gradient(90deg,#C9A84C,#E8C97A);transition:width 0.3s}
 
-/* auth modal */
 .modal-overlay{position:fixed;inset:0;background:rgba(13,31,60,0.68);backdrop-filter:blur(8px);z-index:500;display:flex;align-items:center;justify-content:center;padding:1rem}
 .modal-box{background:white;border-radius:18px;padding:2.25rem;width:100%;max-width:420px;position:relative;box-shadow:0 20px 60px rgba(13,31,60,0.25)}
 .modal-close{position:absolute;top:1rem;right:1rem;background:none;border:none;font-size:1.2rem;cursor:pointer;color:#7A8BA8;padding:4px 8px;border-radius:6px}
@@ -301,15 +264,12 @@ body{font-family:'Nunito',sans-serif;background:#FAFAF6;color:#0D1F3C;line-heigh
 .alert{padding:10px 14px;border-radius:8px;font-size:0.82rem;margin-bottom:1rem;border:1px solid}
 .alert-err{background:#FFF5F5;border-color:#FED7D7;color:#B53232}
 
-/* divider */
 .div{height:1px;background:#E2EAF2;margin:1.25rem 0}
 
-/* ── FOOTER ── */
 .footer{background:#0D1F3C;padding:2.5rem;text-align:center}
 .footer-brand{font-family:var(--serif);font-size:1rem;color:white;margin-bottom:0.3rem}
 .footer-copy{font-size:0.73rem;color:rgba(255,255,255,0.28)}
 
-/* ── RESPONSIVE ── */
 @media(max-width:900px){
   .hero-inner{grid-template-columns:1fr;gap:2.5rem}
   .hero-visual{display:none}
@@ -329,16 +289,16 @@ body{font-family:'Nunito',sans-serif;background:#FAFAF6;color:#0D1F3C;line-heigh
   .dash-main{padding:1.4rem}
 }
 
-/* ── ANIMATIONS ── */
 @keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
 .a1{animation:fadeUp 0.55s ease both 0.08s}
 .a2{animation:fadeUp 0.55s ease both 0.2s}
 .a3{animation:fadeUp 0.55s ease both 0.34s}
 .a4{animation:fadeUp 0.55s ease both 0.48s}
 .a5{animation:fadeUp 0.55s ease both 0.62s}
+
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
 `;
 
-// ─── AI COACH (Anthropic API) ─────────────────────────────────────────────────
 const SYSTEM_PROMPT = `You are the Kingdom Wealth Builders AI Coach — a warm, expert, faith-centered financial stewardship coach.
 
 Personality:
@@ -380,7 +340,6 @@ async function askCoach(messages) {
   return d.content?.[0]?.text || "I'm here to help — could you share a bit more?";
 }
 
-// ─── STATIC DATA for offline plan generation ─────────────────────────────────
 function buildPlan(form) {
   const inc = parseFloat(form.income) || 4000;
   const exp = parseFloat(form.expenses) || 3000;
@@ -431,7 +390,6 @@ function buildPlan(form) {
   };
 }
 
-// ─── DEVOTIONALS DATA ─────────────────────────────────────────────────────────
 const DEVOTIONALS = [
   { day: "Day 1", title: "Money as a Tool, Not a Master", body: "God never intended money to be your source of anxiety. You can use money to serve God. Your budget is a roadmap for purpose, not a cage.", verse: '"For where your treasure is, there your heart will be also." — Matthew 6:21' },
   { day: "Day 2", title: "The Discipline of Delayed Gratification", body: "Proverbs teaches that the ant gathers in summer to prepare for winter. Financial discipline isn't about deprivation — it's about wisdom and future focus.", verse: '"The plans of the diligent lead to profit." — Proverbs 21:5' },
@@ -444,9 +402,8 @@ const LESSONS = [
   { badge: "Lesson 3", title: "Building Your Emergency Fund", body: "Before aggressively paying off debt, save $1,000 as a starter emergency fund. This protects your plan when life happens unexpectedly.", tip: "💡 An emergency fund converts a crisis into a mere inconvenience. It's peace of mind in a bank account." },
 ];
 
-// ─── MAIN APP ─────────────────────────────────────────────────────────────────
 export default function App() {
-  const [page, setPage] = useState("landing"); // landing | intake | dashboard
+  const [page, setPage] = useState("landing");
   const [user, setUser] = useState(null);
   const [authModal, setAuthModal] = useState(null);
   const [plan, setPlan] = useState(null);
@@ -467,7 +424,6 @@ export default function App() {
   return (
     <>
       <style>{CSS}</style>
-      {/* NAV */}
       <nav className="nav">
         <div className="nav-brand" onClick={() => setPage("landing")}>
           <div className="nav-mark">👑</div>
@@ -494,22 +450,15 @@ export default function App() {
       </nav>
 
       {authModal && <AuthModal mode={authModal} onClose={() => setAuthModal(null)} onAuth={login} switchMode={m => setAuthModal(m)} />}
-
       {page === "landing" && <LandingPage onStart={startJourney} />}
       {page === "intake" && <IntakePage user={user} onComplete={(p) => { setPlan(p); setPage("dashboard"); setDashTab("overview"); }} />}
       {page === "dashboard" && plan && (
-        <Dashboard
-          plan={plan} user={user} dashTab={dashTab} setDashTab={setDashTab}
-          checked={checked} setChecked={setChecked}
-          checkinChecked={checkinChecked} setCheckinChecked={setCheckinChecked}
-          onLogout={logout} onRedo={() => setPage("intake")}
-        />
+        <Dashboard plan={plan} user={user} dashTab={dashTab} setDashTab={setDashTab} checked={checked} setChecked={setChecked} checkinChecked={checkinChecked} setCheckinChecked={setCheckinChecked} onLogout={logout} onRedo={() => setPage("intake")} />
       )}
     </>
   );
 }
 
-// ─── AUTH MODAL ───────────────────────────────────────────────────────────────
 function AuthModal({ mode, onClose, onAuth, switchMode }) {
   const [f, setF] = useState({ name: "", email: "", password: "" });
   const [err, setErr] = useState("");
@@ -540,7 +489,6 @@ function AuthModal({ mode, onClose, onAuth, switchMode }) {
   );
 }
 
-// ─── LANDING PAGE ─────────────────────────────────────────────────────────────
 function LandingPage({ onStart }) {
   const features = [
     { icon: "📊", title: "Budget Generator", desc: "Receive a personalized Kingdom budget built around your income, goals, and the biblical 10-10-80 principle — give, save, and live intentionally." },
@@ -553,7 +501,6 @@ function LandingPage({ onStart }) {
 
   return (
     <>
-      {/* HERO */}
       <section className="hero">
         <div className="hero-inner">
           <div>
@@ -601,17 +548,15 @@ function LandingPage({ onStart }) {
         </div>
       </section>
 
-      {/* MISSION */}
       <section className="mission">
         <div className="mission-inner">
           <div className="mission-verse">"The plans of the diligent lead to profit as surely as haste leads to poverty."</div>
           <div className="mission-ref">Proverbs 21:5 (NIV)</div>
           <div className="mission-line" />
-          <p className="mission-body">Kingdom Wealth Builders exists because financial freedom is not just a worldly goal — it's a spiritual calling. When we steward our resources wisely, we honor God, provide for our families, and become a blessing to our communities. Our mission: equip every believer with tools, wisdom, and encouragement to manage money with purpose and faith.</p>
+          <p className="mission-body">Kingdom Wealth Builders exists because financial freedom is not just a worldly goal — it's a spiritual calling. When we steward our resources wisely, we honor God, provide for our families, and become a blessing to our communities.</p>
         </div>
       </section>
 
-      {/* FEATURES */}
       <section className="sec" style={{ background: "white" }} id="features">
         <div className="sec-inner">
           <div className="sec-head">
@@ -631,7 +576,6 @@ function LandingPage({ onStart }) {
         </div>
       </section>
 
-      {/* CTA */}
       <section style={{ background: "linear-gradient(135deg,#0D1F3C,#1B4D3C)", padding: "5rem 2rem", textAlign: "center", position: "relative", overflow: "hidden" }}>
         <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at center, rgba(201,168,76,0.1) 0%, transparent 65%)" }} />
         <div style={{ maxWidth: 600, margin: "0 auto", position: "relative" }}>
@@ -639,13 +583,6 @@ function LandingPage({ onStart }) {
           <h2 style={{ fontFamily: "var(--serif)", fontSize: "2.6rem", fontWeight: 700, color: "white", marginBottom: "1rem", lineHeight: 1.2 }}>Your Kingdom financial<br />journey starts today.</h2>
           <p style={{ fontSize: "1rem", color: "rgba(255,255,255,0.68)", marginBottom: "2.5rem", lineHeight: 1.85 }}>Complete your financial intake in 5 minutes. Receive a personalized budget, debt strategy, savings goals, weekly actions, a devotional, and your first financial lesson — all rooted in faith.</p>
           <button className="btn btn-gold btn-lg" onClick={onStart}>Create My Free Financial Plan →</button>
-          <div style={{ marginTop: "2rem", display: "flex", justifyContent: "center", gap: "2rem", flexWrap: "wrap" }}>
-            {["No credit card required", "Takes 5 minutes", "Faith-centered guidance"].map(t => (
-              <span key={t} style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.45)", display: "flex", alignItems: "center", gap: "6px" }}>
-                <span style={{ color: "#C9A84C" }}>✓</span>{t}
-              </span>
-            ))}
-          </div>
         </div>
       </section>
 
@@ -657,7 +594,6 @@ function LandingPage({ onStart }) {
   );
 }
 
-// ─── INTAKE PAGE ──────────────────────────────────────────────────────────────
 function IntakePage({ user, onComplete }) {
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -695,7 +631,7 @@ function IntakePage({ user, onComplete }) {
                 <div className="form-group"><label className="form-label">Email Address</label><input className="form-input" type="email" placeholder="you@email.com" value={form.email} onChange={e => set("email", e.target.value)} /></div>
               </div>
               <div className="form-group">
-                <label className="form-label">Financial Timeline <span>How long are you committed to this journey?</span></label>
+                <label className="form-label">Financial Timeline</label>
                 <select className="form-select" value={form.timeline} onChange={e => set("timeline", e.target.value)}>
                   <option value="6 months">6 months — Quick wins and momentum</option>
                   <option value="1-2 years">1–2 years — Steady, meaningful progress</option>
@@ -709,12 +645,12 @@ function IntakePage({ user, onComplete }) {
           {step === 1 && (
             <>
               <div className="form-row">
-                <div className="form-group"><label className="form-label">Monthly Take-Home Income <span>after taxes</span></label><div className="curr"><input className="form-input" type="number" placeholder="0.00" value={form.income} onChange={e => set("income", e.target.value)} /></div></div>
-                <div className="form-group"><label className="form-label">Monthly Expenses <span>total outflows</span></label><div className="curr"><input className="form-input" type="number" placeholder="0.00" value={form.expenses} onChange={e => set("expenses", e.target.value)} /></div></div>
+                <div className="form-group"><label className="form-label">Monthly Take-Home Income</label><div className="curr"><input className="form-input" type="number" placeholder="0.00" value={form.income} onChange={e => set("income", e.target.value)} /></div></div>
+                <div className="form-group"><label className="form-label">Monthly Expenses</label><div className="curr"><input className="form-input" type="number" placeholder="0.00" value={form.expenses} onChange={e => set("expenses", e.target.value)} /></div></div>
               </div>
               <div className="form-row">
-                <div className="form-group"><label className="form-label">Total Debt Amount <span>all accounts</span></label><div className="curr"><input className="form-input" type="number" placeholder="0.00" value={form.debt} onChange={e => set("debt", e.target.value)} /></div></div>
-                <div className="form-group"><label className="form-label">Current Savings <span>total saved</span></label><div className="curr"><input className="form-input" type="number" placeholder="0.00" value={form.savings} onChange={e => set("savings", e.target.value)} /></div></div>
+                <div className="form-group"><label className="form-label">Total Debt Amount</label><div className="curr"><input className="form-input" type="number" placeholder="0.00" value={form.debt} onChange={e => set("debt", e.target.value)} /></div></div>
+                <div className="form-group"><label className="form-label">Current Savings</label><div className="curr"><input className="form-input" type="number" placeholder="0.00" value={form.savings} onChange={e => set("savings", e.target.value)} /></div></div>
               </div>
               {form.income && form.expenses && (
                 <div className={`surplus-banner ${surplus >= 0 ? "surplus-pos" : "surplus-neg"}`}>
@@ -729,11 +665,11 @@ function IntakePage({ user, onComplete }) {
             <>
               <div className="form-group">
                 <label className="form-label">Your Financial Goals</label>
-                <textarea className="form-textarea" placeholder="e.g., Pay off my credit cards, build a 3-month emergency fund, save for a home, give more generously to my church, leave a legacy for my kids..." value={form.goals} onChange={e => set("goals", e.target.value)} />
+                <textarea className="form-textarea" placeholder="e.g., Pay off my credit cards, build a 3-month emergency fund, save for a home..." value={form.goals} onChange={e => set("goals", e.target.value)} />
               </div>
               <div className="form-group">
-                <label className="form-label">Your Biggest Financial Stress <span>be honest — there's no judgment here</span></label>
-                <textarea className="form-textarea" placeholder="What keeps you up at night financially? What feels most overwhelming or out of control right now?" value={form.stress} onChange={e => set("stress", e.target.value)} />
+                <label className="form-label">Your Biggest Financial Stress</label>
+                <textarea className="form-textarea" placeholder="What keeps you up at night financially?" value={form.stress} onChange={e => set("stress", e.target.value)} />
               </div>
             </>
           )}
@@ -745,7 +681,7 @@ function IntakePage({ user, onComplete }) {
               ))}
               <div style={{ margin: "1.5rem 0", padding: "1.25rem", background: "#FDF7E8", border: "1px solid #E5D08A", borderRadius: 10 }}>
                 <div style={{ fontSize: "0.82rem", color: "#8B6914", fontWeight: 700, marginBottom: "0.3rem" }}>🕊️ Before We Begin</div>
-                <div style={{ fontFamily: "var(--serif)", fontSize: "0.88rem", fontStyle: "italic", color: "#7A5C10", lineHeight: 1.7 }}>"Trust in the Lord with all your heart and lean not on your own understanding; in all your ways submit to him, and he will make your paths straight." — Proverbs 3:5-6</div>
+                <div style={{ fontFamily: "var(--serif)", fontSize: "0.88rem", fontStyle: "italic", color: "#7A5C10", lineHeight: 1.7 }}>"Trust in the Lord with all your heart and lean not on your own understanding." — Proverbs 3:5-6</div>
               </div>
             </>
           )}
@@ -764,7 +700,6 @@ function IntakePage({ user, onComplete }) {
   );
 }
 
-// ─── DASHBOARD ────────────────────────────────────────────────────────────────
 function Dashboard({ plan, user, dashTab, setDashTab, checked, setChecked, checkinChecked, setCheckinChecked, onLogout, onRedo }) {
   const sidebarItems = [
     { id: "overview", icon: "🏠", label: "Overview" },
@@ -776,13 +711,13 @@ function Dashboard({ plan, user, dashTab, setDashTab, checked, setChecked, check
     { id: "lessons", icon: "🎓", label: "Financial Lessons" },
     { id: "checkin", icon: "🔔", label: "Weekly Check-In" },
     { id: "coach", icon: "🤖", label: "AI Coach" },
+    { id: "tracker", icon: "📒", label: "Budget Tracker" },
   ];
   const toggleCheck = i => setChecked(c => c.includes(i) ? c.filter(x => x !== i) : [...c, i]);
   const toggleCheckin = i => setCheckinChecked(c => c.includes(i) ? c.filter(x => x !== i) : [...c, i]);
 
   return (
     <div className="dash-layout">
-      {/* SIDEBAR */}
       <aside className="sidebar">
         <div className="sb-avatar">
           <div className="sb-av-circle">{(user?.name || plan.user.name || "K")[0].toUpperCase()}</div>
@@ -803,14 +738,12 @@ function Dashboard({ plan, user, dashTab, setDashTab, checked, setChecked, check
         <div className="sb-item" onClick={onLogout}><span className="sb-icon">🚪</span><span>Sign Out</span></div>
       </aside>
 
-      {/* MAIN */}
       <main className="dash-main">
         <div style={{ marginBottom: "1.75rem" }}>
           <h1 className="dash-welcome">Good day, {(user?.name || plan.user.name || "Friend").split(" ")[0]}. 👑</h1>
           <p className="dash-sub">{new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })} · Your Kingdom financial dashboard</p>
         </div>
 
-        {/* STATS */}
         <div className="stats-row">
           {[
             { icon: "💰", label: "Monthly Income", val: `$${plan.income.toLocaleString()}`, note: "Take-home pay", cls: "" },
@@ -827,7 +760,6 @@ function Dashboard({ plan, user, dashTab, setDashTab, checked, setChecked, check
           ))}
         </div>
 
-        {/* ── OVERVIEW ── */}
         {dashTab === "overview" && (
           <>
             <div className="dash-grid-2">
@@ -883,7 +815,6 @@ function Dashboard({ plan, user, dashTab, setDashTab, checked, setChecked, check
           </>
         )}
 
-        {/* ── BUDGET ── */}
         {dashTab === "budget" && (
           <div className="card card-p">
             <div className="card-hdr"><div><div className="card-title">Your Personalized Kingdom Budget</div><div className="card-subtitle">Generated from your monthly income of ${plan.income.toLocaleString()}</div></div></div>
@@ -898,78 +829,55 @@ function Dashboard({ plan, user, dashTab, setDashTab, checked, setChecked, check
             </div>
             <div style={{ padding: "1.25rem", background: "#FDF7E8", border: "1px solid #E5D08A", borderRadius: 10 }}>
               <strong style={{ fontSize: "0.85rem", color: "#7A5C10" }}>👑 The 10-10-80 Kingdom Principle:</strong>
-              <p style={{ fontSize: "0.85rem", color: "#8B6914", marginTop: "0.35rem", lineHeight: 1.75 }}>Give 10%, Save 10%, Live on 80%. Start wherever you are — even 5-5-90 is powerful. Grow your percentages as God blesses your faithfulness. "Honor the Lord with your wealth." — Proverbs 3:9</p>
+              <p style={{ fontSize: "0.85rem", color: "#8B6914", marginTop: "0.35rem", lineHeight: 1.75 }}>Give 10%, Save 10%, Live on 80%. Start wherever you are — even 5-5-90 is powerful.</p>
             </div>
           </div>
         )}
 
-        {/* ── DEBT ── */}
         {dashTab === "debt" && (
           <div className="card card-p">
             <div className="card-hdr"><div><div className="card-title">Your Debt Freedom Roadmap</div><div className="card-subtitle">Snowball method — attack smallest balance first</div></div></div>
             {plan.debts.map(d => (
               <div key={d.name} style={{ padding: "1.5rem", background: "#FAFAF6", borderRadius: 12, marginBottom: "1rem", borderLeft: `4px solid ${d.priority === 1 ? "#B53232" : d.priority === 2 ? "#0D1F3C" : "#7A8BA8"}` }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.75rem" }}>
-                  <div><div className="priority-tag">#{d.priority} — Attack This {d.priority === 1 ? "First" : d.priority === 2 ? "Second" : "Third"}</div><div style={{ fontFamily: "var(--serif)", fontSize: "1rem", fontWeight: 600, color: "#0D1F3C" }}>{d.name}</div><div style={{ fontSize: "0.78rem", color: "#7A8BA8" }}>{d.rate} APR</div></div>
-                  <div style={{ textAlign: "right" }}><div style={{ fontFamily: "var(--serif)", fontSize: "1.5rem", fontWeight: 700, color: d.priority === 1 ? "#B53232" : "#0D1F3C" }}>${d.bal.toLocaleString()}</div><div style={{ fontSize: "0.72rem", color: "#7A8BA8" }}>remaining</div></div>
+                  <div><div className="priority-tag">#{d.priority} Priority</div><div style={{ fontFamily: "var(--serif)", fontSize: "1rem", fontWeight: 600, color: "#0D1F3C" }}>{d.name}</div><div style={{ fontSize: "0.78rem", color: "#7A8BA8" }}>{d.rate} APR</div></div>
+                  <div style={{ textAlign: "right" }}><div style={{ fontFamily: "var(--serif)", fontSize: "1.5rem", fontWeight: 700, color: d.priority === 1 ? "#B53232" : "#0D1F3C" }}>${d.bal.toLocaleString()}</div></div>
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: "#7A8BA8", marginBottom: "0.4rem" }}><span>Progress</span><span>{d.paidPct}% paid</span></div>
                 <div className="debt-bar-bg" style={{ height: 8 }}><div className="debt-bar-fill" style={{ width: `${d.paidPct}%` }} /></div>
                 <div style={{ marginTop: "0.6rem", fontSize: "0.82rem", color: "#3E506B" }}>Min payment: <strong>${d.payment}/month</strong></div>
               </div>
             ))}
-            <div style={{ padding: "1.25rem", background: "#EBF0F8", border: "1px solid #C0D0E8", borderRadius: 10 }}>
-              <strong style={{ fontSize: "0.85rem", color: "#162E56" }}>📊 Snowball Strategy:</strong>
-              <p style={{ fontSize: "0.85rem", color: "#1E3D70", marginTop: "0.35rem", lineHeight: 1.75 }}>Pay minimums on debts #2 and #3. Put every extra dollar you have toward Debt #1. When it's paid off, roll its entire payment into Debt #2. Build unstoppable momentum. "The borrower is slave to the lender." — Proverbs 22:7. You will be free.</p>
-            </div>
           </div>
         )}
 
-        {/* ── SAVINGS ── */}
         {dashTab === "savings" && (
           <div className="card card-p">
-            <div className="card-hdr"><div><div className="card-title">Your Savings Goals</div><div className="card-subtitle">Building your financial foundation</div></div></div>
+            <div className="card-hdr"><div><div className="card-title">Your Savings Goals</div></div></div>
             {plan.savingsGoals.map(g => {
               const pct = Math.min(100, Math.round((g.current / g.target) * 100));
-              const monthly = Math.round((g.target - g.current) / 12);
               return (
                 <div key={g.name} className="card savings-item" style={{ marginBottom: "1rem" }}>
                   <div className="sav-hdr"><div style={{ display: "flex", alignItems: "center", gap: "8px" }}><span style={{ fontSize: "1.4rem" }}>{g.icon}</span><span className="sav-name">{g.name}</span></div><span className="sav-pct">{pct}% funded</span></div>
                   <div className="sav-amts"><span>${g.current.toLocaleString()} saved</span><span>Goal: ${g.target.toLocaleString()}</span></div>
                   <div className="sav-bar-bg"><div className="sav-bar-fill" style={{ width: `${pct}%` }} /></div>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: "0.5rem", fontSize: "0.75rem", color: "#7A8BA8" }}>
-                    <span>${(g.target - g.current).toLocaleString()} remaining</span>
-                    <span>~${monthly}/mo to complete in 12 months</span>
-                  </div>
                 </div>
               );
             })}
           </div>
         )}
 
-        {/* ── ACTIONS ── */}
         {dashTab === "actions" && (
           <div className="card card-p">
-            <div className="card-hdr">
-              <div><div className="card-title">This Week's Action Steps</div><div className="card-subtitle">{checked.length} of {plan.actions.length} completed</div></div>
-              {checked.length === plan.actions.length && <span style={{ color: "#1B4D3C", fontWeight: 700, fontSize: "0.85rem" }}>🎉 Week complete!</span>}
-            </div>
-            <div style={{ height: 6, background: "#E2EAF2", borderRadius: 100, marginBottom: "1.5rem", overflow: "hidden" }}>
-              <div style={{ height: "100%", width: `${(checked.length / plan.actions.length) * 100}%`, background: "linear-gradient(90deg,#1B4D3C,#246B52)", borderRadius: 100, transition: "width 0.3s" }} />
-            </div>
+            <div className="card-hdr"><div><div className="card-title">This Week's Action Steps</div><div className="card-subtitle">{checked.length} of {plan.actions.length} completed</div></div></div>
             {plan.actions.map((a, i) => (
-              <div key={i} className="action-row" style={{ padding: "1.1rem 0" }}>
-                <div className={`action-cb ${checked.includes(i) ? "done" : ""}`} onClick={() => toggleCheck(i)} style={{ width: 24, height: 24 }}>{checked.includes(i) ? "✓" : ""}</div>
-                <div><div className={`action-txt ${checked.includes(i) ? "done" : ""}`} style={{ fontSize: "0.92rem" }}>{a.text}</div><span className={`action-tag tag-${a.tag}`}>{a.tag}</span></div>
+              <div key={i} className="action-row">
+                <div className={`action-cb ${checked.includes(i) ? "done" : ""}`} onClick={() => toggleCheck(i)}>{checked.includes(i) ? "✓" : ""}</div>
+                <div><div className={`action-txt ${checked.includes(i) ? "done" : ""}`}>{a.text}</div><span className={`action-tag tag-${a.tag}`}>{a.tag}</span></div>
               </div>
             ))}
-            <div style={{ marginTop: "1.5rem", padding: "1.1rem", background: "#FDF7E8", border: "1px solid #E5D08A", borderRadius: 10, fontSize: "0.85rem", color: "#8B6914", lineHeight: 1.72 }}>
-              💡 <strong>Tip:</strong> Consistency beats perfection. Even completing 2 of 4 actions this week is extraordinary progress. "Well done, good and faithful servant." — Matthew 25:21
-            </div>
           </div>
         )}
 
-        {/* ── DEVOTIONALS ── */}
         {dashTab === "devotional" && (
           <div>
             <div style={{ marginBottom: "1.5rem" }}>
@@ -977,13 +885,6 @@ function Dashboard({ plan, user, dashTab, setDashTab, checked, setChecked, check
                 <div className="scripture-eyebrow">📖 This Week's Scripture</div>
                 <p style={{ fontFamily: "var(--serif)", fontSize: "1.5rem", fontStyle: "italic", color: "white", lineHeight: 1.7, marginBottom: "1rem", position: "relative" }}>"{plan.scripture.text}"</p>
                 <div className="scripture-ref">— {plan.scripture.ref}</div>
-              </div>
-            </div>
-            <div style={{ marginBottom: "1.5rem" }}>
-              <div className="encourage-card" style={{ padding: "2rem" }}>
-                <div className="encourage-icon">✨</div>
-                <div style={{ fontFamily: "var(--serif)", fontSize: "1.05rem", fontWeight: 600, color: "#0D1F3C", marginBottom: "0.75rem" }}>Your Personal Encouragement</div>
-                <p className="encourage-text">{plan.encouragement}</p>
               </div>
             </div>
             <div className="dash-grid-3">
@@ -999,35 +900,24 @@ function Dashboard({ plan, user, dashTab, setDashTab, checked, setChecked, check
           </div>
         )}
 
-        {/* ── LESSONS ── */}
         {dashTab === "lessons" && (
-          <>
-            <div className="card card-p" style={{ marginBottom: "1.35rem" }}>
-              <div className="card-hdr"><div><div className="card-title">Your First Financial Lesson</div><div className="card-subtitle">Based on your intake — most relevant to you right now</div></div></div>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "1rem" }}><span style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", padding: "3px 10px", borderRadius: 100, background: "#EBF6F1", color: "#1B4D3C" }}>Lesson for You</span></div>
-              <div style={{ fontFamily: "var(--serif)", fontSize: "1.2rem", fontWeight: 600, color: "#0D1F3C", marginBottom: "0.6rem" }}>{plan.lesson.title}</div>
-              <p style={{ fontSize: "0.9rem", color: "#3E506B", lineHeight: 1.8, marginBottom: "1rem" }}>{plan.lesson.body}</p>
-              <div style={{ padding: "0.85rem", background: "#EBF6F1", borderRadius: 8, borderLeft: "3px solid #1B4D3C", fontSize: "0.82rem", color: "#1B4D3C", fontWeight: 500, lineHeight: 1.65 }}>{plan.lesson.tip}</div>
-            </div>
-            <div className="dash-grid-3">
-              {LESSONS.map(l => (
-                <div key={l.badge} className="card lesson-card">
-                  <div className="lesson-badge">🎓 {l.badge}</div>
-                  <div className="lesson-title">{l.title}</div>
-                  <p className="lesson-body">{l.body}</p>
-                  <div className="lesson-tip">{l.tip}</div>
-                </div>
-              ))}
-            </div>
-          </>
+          <div className="dash-grid-3">
+            {LESSONS.map(l => (
+              <div key={l.badge} className="card lesson-card">
+                <div className="lesson-badge">🎓 {l.badge}</div>
+                <div className="lesson-title">{l.title}</div>
+                <p className="lesson-body">{l.body}</p>
+                <div className="lesson-tip">{l.tip}</div>
+              </div>
+            ))}
+          </div>
         )}
 
-        {/* ── WEEKLY CHECK-IN ── */}
         {dashTab === "checkin" && (
           <div className="dash-grid-2">
             <div className="card">
               <div className="checkin-wrap">
-                <div className="checkin-eyebrow">🔔 Weekly Check-In — {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric" })}</div>
+                <div className="checkin-eyebrow">🔔 Weekly Check-In</div>
                 {["I tracked my spending this week", "I made my debt payment on time", "I moved money to savings", "I read a stewardship devotional", "I gave this week (tithe or offering)", "I stayed within my budget categories"].map((item, i) => (
                   <div key={i} className="checkin-row" onClick={() => toggleCheckin(i)}>
                     <div className={`checkin-check ${checkinChecked.includes(i) ? "done" : ""}`}>{checkinChecked.includes(i) ? "✓" : ""}</div>
@@ -1038,38 +928,26 @@ function Dashboard({ plan, user, dashTab, setDashTab, checked, setChecked, check
                 <div style={{ marginTop: "0.5rem", fontSize: "0.75rem", color: "#7A8BA8" }}>{checkinChecked.length}/6 complete this week</div>
               </div>
             </div>
-            <div className="dash-col">
-              <div className="card card-p">
-                <div className="card-title" style={{ marginBottom: "0.75rem" }}>This Week's Summary</div>
-                {[["Surplus to Allocate", `$${Math.max(0, plan.surplus).toLocaleString()}`, plan.surplus >= 0 ? "#1B4D3C" : "#B53232"], ["Actions Completed", `${checked.length}/${plan.actions.length}`, "#0D1F3C"], ["Savings Progress", `${Math.round((plan.savings / plan.savingsGoals[0].target) * 100)}%`, "#C9A84C"], ["Check-in Score", `${checkinChecked.length}/6`, "#0D1F3C"]].map(([l, v, c]) => (
-                  <div key={l} style={{ display: "flex", justifyContent: "space-between", padding: "0.7rem 0", borderBottom: "1px solid #E2EAF2" }}>
-                    <span style={{ fontSize: "0.84rem", color: "#7A8BA8" }}>{l}</span>
-                    <span style={{ fontFamily: "var(--serif)", fontSize: "1rem", fontWeight: 700, color: c }}>{v}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="scripture-card">
-                <div className="scripture-eyebrow">📖 Encouragement for This Week</div>
-                <p className="scripture-text">"Well done, good and faithful servant! You have been faithful with a few things; I will put you in charge of many things."</p>
-                <div className="scripture-ref">— Matthew 25:23</div>
-              </div>
+            <div className="scripture-card" style={{ alignSelf: "start" }}>
+              <div className="scripture-eyebrow">📖 Encouragement</div>
+              <p className="scripture-text">"Well done, good and faithful servant!"</p>
+              <div className="scripture-ref">— Matthew 25:23</div>
             </div>
           </div>
         )}
 
-        {/* ── AI COACH ── */}
         {dashTab === "coach" && <AICoach user={user} plan={plan} />}
+        {dashTab === "tracker" && <BudgetTracker />}
       </main>
     </div>
   );
 }
 
-// ─── AI COACH TAB ─────────────────────────────────────────────────────────────
 function AICoach({ user, plan }) {
   const name = user?.name || plan?.user?.name || "Friend";
   const [msgs, setMsgs] = useState([{
     role: "assistant",
-    content: `Hello, ${name.split(" ")[0]}! 👑 I'm your Kingdom Wealth Coach.\n\nI've reviewed your financial plan and I'm here to answer questions, teach you financial concepts, provide encouragement, and help you stay accountable.\n\n**You can ask me things like:**\n- "Walk me through my debt strategy"\n- "Teach me about budgeting"\n- "I'm feeling discouraged — help me"\n- "What should I focus on this week?"\n\nWhat's on your heart today? 🙏`,
+    content: `Hello, ${name.split(" ")[0]}! 👑 I'm your Kingdom Wealth Coach.\n\nI've reviewed your financial plan and I'm here to answer questions, teach you financial concepts, and provide encouragement.\n\n**You can ask me things like:**\n- "Walk me through my debt strategy"\n- "Teach me about budgeting"\n- "What should I focus on this week?"\n\nWhat's on your heart today? 🙏`,
     time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
   }]);
   const [input, setInput] = useState("");
@@ -1078,14 +956,14 @@ function AICoach({ user, plan }) {
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs, loading]);
 
-  const hints = ["Walk me through my budget", "How do I stay motivated?", "Explain the snowball method", "Give me a scripture for today", "What should I do first this week?"];
+  const hints = ["Walk me through my budget", "How do I stay motivated?", "Explain the snowball method", "Give me a scripture for today"];
 
   const send = async (text) => {
     const content = (text || input).trim();
     if (!content || loading) return;
     setInput("");
     const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    const context = `User's financial snapshot: Income $${plan.income}/mo, Expenses $${plan.expenses}/mo, Debt $${plan.debt}, Savings $${plan.savings}. Surplus: $${plan.surplus}/mo. Goals: ${plan.user.goals || "not specified"}. Stress: ${plan.user.stress || "not specified"}.`;
+    const context = `User's financial snapshot: Income $${plan.income}/mo, Expenses $${plan.expenses}/mo, Debt $${plan.debt}, Savings $${plan.savings}.`;
     const newMsgs = [...msgs, { role: "user", content, time }];
     setMsgs(newMsgs);
     setLoading(true);
@@ -1094,7 +972,7 @@ function AICoach({ user, plan }) {
       const reply = await askCoach(apiMsgs);
       setMsgs(prev => [...prev, { role: "assistant", content: reply, time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) }]);
     } catch {
-      setMsgs(prev => [...prev, { role: "assistant", content: "I'm sorry — I couldn't reach the server right now. Please try again in a moment. You're not alone in this! 🙏", time }]);
+      setMsgs(prev => [...prev, { role: "assistant", content: "I'm sorry — I couldn't reach the server right now. Please try again in a moment. 🙏", time }]);
     }
     setLoading(false);
   };
@@ -1110,28 +988,27 @@ function AICoach({ user, plan }) {
         <div style={{ width: 38, height: 38, borderRadius: "50%", background: "linear-gradient(135deg,#C9A84C,#E8C97A)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>👑</div>
         <div>
           <div style={{ fontWeight: 700, fontSize: "0.9rem", color: "white" }}>Kingdom Wealth Coach</div>
-          <div style={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.5)", display: "flex", alignItems: "center", gap: 5 }}><span style={{ width: 6, height: 6, borderRadius: "50%", background: "#22C55E", display: "inline-block" }} />Live · Powered by Claude AI</div>
+          <div style={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.5)" }}>Powered by Claude AI</div>
         </div>
       </div>
 
       <div className="card" style={{ padding: "1.25rem" }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem", maxHeight: 460, overflowY: "auto", marginBottom: "1rem", paddingRight: "0.25rem" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem", maxHeight: 460, overflowY: "auto", marginBottom: "1rem" }}>
           {msgs.map((m, i) => (
             <div key={i} style={{ display: "flex", gap: 9, alignItems: "flex-start", flexDirection: m.role === "user" ? "row-reverse" : "row" }}>
-              <div style={{ width: 30, height: 30, borderRadius: "50%", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, background: m.role === "user" ? "#0D1F3C" : "linear-gradient(135deg,#C9A84C,#E8C97A)", color: m.role === "user" ? "white" : "#0D1F3C", fontWeight: 700, fontSize: "0.75rem" }}>
+              <div style={{ width: 30, height: 30, borderRadius: "50%", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: m.role === "user" ? "#0D1F3C" : "linear-gradient(135deg,#C9A84C,#E8C97A)", color: m.role === "user" ? "white" : "#0D1F3C", fontWeight: 700, fontSize: "0.75rem" }}>
                 {m.role === "user" ? (name[0]?.toUpperCase() || "U") : "👑"}
               </div>
               <div style={{ maxWidth: "78%" }}>
-                <div style={{ padding: "0.85rem 1rem", borderRadius: m.role === "user" ? "12px 4px 12px 12px" : "4px 12px 12px 12px", fontSize: "0.875rem", lineHeight: 1.7, background: m.role === "user" ? "#0D1F3C" : "white", color: m.role === "user" ? "white" : "#0D1F3C", border: m.role === "user" ? "none" : "1px solid #E2EAF2", boxShadow: m.role === "assistant" ? "0 2px 6px rgba(13,31,60,0.06)" : "none" }}>
+                <div style={{ padding: "0.85rem 1rem", borderRadius: m.role === "user" ? "12px 4px 12px 12px" : "4px 12px 12px 12px", fontSize: "0.875rem", lineHeight: 1.7, background: m.role === "user" ? "#0D1F3C" : "white", color: m.role === "user" ? "white" : "#0D1F3C", border: m.role === "user" ? "none" : "1px solid #E2EAF2" }}>
                   {renderContent(m.content)}
                 </div>
-                <div style={{ fontSize: "0.63rem", color: "#7A8BA8", marginTop: 3, textAlign: m.role === "user" ? "right" : "left" }}>{m.time}</div>
               </div>
             </div>
           ))}
           {loading && (
-            <div style={{ display: "flex", gap: 9, alignItems: "flex-start" }}>
-              <div style={{ width: 30, height: 30, borderRadius: "50%", background: "linear-gradient(135deg,#C9A84C,#E8C97A)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>👑</div>
+            <div style={{ display: "flex", gap: 9 }}>
+              <div style={{ width: 30, height: 30, borderRadius: "50%", background: "linear-gradient(135deg,#C9A84C,#E8C97A)", display: "flex", alignItems: "center", justifyContent: "center" }}>👑</div>
               <div style={{ padding: "0.85rem 1rem", borderRadius: "4px 12px 12px 12px", background: "white", border: "1px solid #E2EAF2", display: "flex", gap: 5, alignItems: "center" }}>
                 {[0, 0.2, 0.4].map((d, i) => <div key={i} style={{ width: 7, height: 7, borderRadius: "50%", background: "#7A8BA8", animation: `bounce 1.2s ${d}s infinite` }} />)}
               </div>
@@ -1144,11 +1021,390 @@ function AICoach({ user, plan }) {
             {hints.map(h => <button key={h} style={{ padding: "4px 12px", borderRadius: 100, fontSize: "0.72rem", fontWeight: 600, background: "#FAFAF6", border: "1px solid #E2EAF2", color: "#3E506B", cursor: "pointer", fontFamily: "var(--sans)" }} onClick={() => send(h)}>{h}</button>)}
           </div>
           <div style={{ display: "flex", gap: "0.65rem", alignItems: "flex-end" }}>
-            <textarea style={{ flex: 1, padding: "10px 14px", border: "1.5px solid #E2EAF2", borderRadius: 8, fontFamily: "var(--sans)", fontSize: "0.9rem", color: "#0D1F3C", outline: "none", resize: "none", lineHeight: 1.6, minHeight: 44, background: "white" }} placeholder="Ask me anything about your finances, faith, or plan..." value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }} onFocus={e => e.target.style.borderColor = "#C9A84C"} onBlur={e => e.target.style.borderColor = "#E2EAF2"} />
-            <button style={{ width: 40, height: 40, borderRadius: 8, background: loading || !input.trim() ? "#E2EAF2" : "#0D1F3C", border: "none", cursor: loading || !input.trim() ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: loading || !input.trim() ? "#7A8BA8" : "white", fontSize: 16, flexShrink: 0, transition: "all 0.15s" }} onClick={() => send()} disabled={!input.trim() || loading}>➤</button>
+            <textarea style={{ flex: 1, padding: "10px 14px", border: "1.5px solid #E2EAF2", borderRadius: 8, fontFamily: "var(--sans)", fontSize: "0.9rem", color: "#0D1F3C", outline: "none", resize: "none", lineHeight: 1.6, minHeight: 44, background: "white" }} placeholder="Ask me anything about your finances, faith, or plan..." value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }} />
+            <button style={{ width: 40, height: 40, borderRadius: 8, background: loading || !input.trim() ? "#E2EAF2" : "#0D1F3C", border: "none", cursor: loading || !input.trim() ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: loading || !input.trim() ? "#7A8BA8" : "white", fontSize: 16, flexShrink: 0 }} onClick={() => send()} disabled={!input.trim() || loading}>➤</button>
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── BUDGET TRACKER ───────────────────────────────────────────────────────────
+const MILEAGE_RATES = { Business: 0.70, Medical: 0.21, Charity: 0.21, Personal: 0 };
+const MONTHS_LIST = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+function BudgetTracker() {
+  const now = new Date();
+  const [month, setMonth] = useState(now.getMonth());
+  const [year, setYear] = useState(now.getFullYear());
+  const [tab, setTab] = useState("income");
+  const [income, setIncome] = useState([]);
+  const [expenses, setExpenses] = useState([]);
+  const [mileage, setMileage] = useState([]);
+  const [bankRows, setBankRows] = useState([]);
+  const [incSrc, setIncSrc] = useState(""); const [incCat, setIncCat] = useState("Primary job"); const [incAmt, setIncAmt] = useState("");
+  const [expDate, setExpDate] = useState(now.toISOString().slice(0,10)); const [expDesc, setExpDesc] = useState(""); const [expCat, setExpCat] = useState("Housing"); const [expAmt, setExpAmt] = useState(""); const [expNotes, setExpNotes] = useState("");
+  const [milDate, setMilDate] = useState(now.toISOString().slice(0,10)); const [milPurpose, setMilPurpose] = useState(""); const [milMiles, setMilMiles] = useState(""); const [milType, setMilType] = useState("Business");
+
+  const key = `${year}-${month}`;
+  const mInc = income.filter(r => r.key === key);
+  const mExp = expenses.filter(r => r.key === key);
+  const mMil = mileage.filter(r => r.key === key);
+  const totalInc = mInc.reduce((s,r) => s+r.amt, 0);
+  const totalExp = mExp.reduce((s,r) => s+r.amt, 0);
+  const totalMi = mMil.reduce((s,r) => s+r.miles, 0);
+  const totalMiVal = mMil.reduce((s,r) => s+(r.miles*(MILEAGE_RATES[r.type]||0)), 0);
+  const surplus = totalInc - totalExp;
+
+  const fmt = n => '$' + Math.abs(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+
+  const addIncome = () => {
+    if (!incSrc || !incAmt) return;
+    setIncome(p => [...p, {id:Date.now(),key,src:incSrc,cat:incCat,amt:parseFloat(incAmt)}]);
+    setIncSrc(""); setIncAmt("");
+  };
+  const addExpense = () => {
+    if (!expDesc || !expAmt) return;
+    setExpenses(p => [...p, {id:Date.now(),key,date:expDate,desc:expDesc,cat:expCat,amt:parseFloat(expAmt),notes:expNotes}]);
+    setExpDesc(""); setExpAmt(""); setExpNotes("");
+  };
+  const addMileage = () => {
+    if (!milPurpose || !milMiles) return;
+    setMileage(p => [...p, {id:Date.now(),key,date:milDate,purpose:milPurpose,miles:parseFloat(milMiles),type:milType}]);
+    setMilPurpose(""); setMilMiles("");
+  };
+
+  const parseCSV = (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const lines = ev.target.result.split('\n').filter(l => l.trim());
+      const rows = lines.slice(1).map(l => { const c = l.split(',').map(x => x.replace(/"/g,'').trim()); return {date:c[0]||'',desc:c[1]||'',amt:parseFloat(c[2])||parseFloat(c[3])||0}; }).filter(r => r.desc);
+      setBankRows(rows);
+    };
+    reader.readAsText(file);
+  };
+
+  const generateAdvice = () => {
+    const items = [];
+    const savPct = totalInc > 0 ? (surplus/totalInc)*100 : 0;
+    const givingAmt = mExp.filter(r => r.cat==='Giving / tithe').reduce((s,r) => s+r.amt, 0);
+    const givingPct = totalInc > 0 ? (givingAmt/totalInc)*100 : 0;
+    const foodAmt = mExp.filter(r => r.cat==='Food & groceries').reduce((s,r) => s+r.amt, 0);
+    const foodPct = totalInc > 0 ? (foodAmt/totalInc)*100 : 0;
+    const entAmt = mExp.filter(r => r.cat==='Entertainment').reduce((s,r) => s+r.amt, 0);
+    const entPct = totalInc > 0 ? (entAmt/totalInc)*100 : 0;
+    const debtAmt = mExp.filter(r => r.cat==='Debt payment').reduce((s,r) => s+r.amt, 0);
+    if (totalInc === 0) return [{ icon:"ℹ️", text:"Add income sources to get personalized advice for this month." }];
+    if (savPct >= 20) items.push({ icon:"⭐", text:`Outstanding! You saved ${savPct.toFixed(0)}% of income — above the 20% target. You're building real Kingdom wealth.` });
+    else if (savPct >= 10) items.push({ icon:"✅", text:`Good work — ${savPct.toFixed(0)}% surplus. Push toward 20% by trimming one discretionary category.` });
+    else if (surplus >= 0) items.push({ icon:"⚠️", text:`Small ${savPct.toFixed(0)}% surplus. Aim for 10-20% by reviewing your top spending categories.` });
+    else items.push({ icon:"🚨", text:`Deficit of ${fmt(Math.abs(surplus))} this month. Review your largest expense categories and identify one to reduce.` });
+    if (givingPct < 10) items.push({ icon:"❤️", text:`Giving was ${givingPct.toFixed(0)}% this month. The Kingdom 10-10-80 principle calls for 10%. Even small steps toward this honor God.` });
+    else items.push({ icon:"❤️", text:`You gave ${givingPct.toFixed(0)}% — faithful stewardship! "Give, and it will be given to you." (Luke 6:38)` });
+    if (foodPct > 15) items.push({ icon:"🛒", text:`Food & groceries at ${foodPct.toFixed(0)}% of income. Target 10-12% through meal planning and batch cooking.` });
+    if (entPct > 5) items.push({ icon:"📺", text:`Entertainment at ${entPct.toFixed(0)}%. Cap it at 3-5% and redirect the difference to debt payoff or savings.` });
+    if (debtAmt > 0 && totalInc > 0) { const dp = (debtAmt/totalInc)*100; if (dp > 20) items.push({ icon:"💳", text:`Debt payments are ${dp.toFixed(0)}% of income. Focus extra dollars on your smallest balance (snowball method) to build momentum.` }); }
+    if (totalMi > 0) items.push({ icon:"🚗", text:`You logged ${totalMi.toFixed(1)} miles worth ${fmt(totalMiVal)} in deductible mileage. Keep tracking — this adds up to real tax savings!` });
+    return items;
+  };
+
+  const annualStats = () => {
+    let aInc=0,aExp=0,aMi=0,aMiVal=0,aGiving=0;
+    const monthly=[];
+    const catTotals={};
+    for(let m=0;m<12;m++){
+      const k=`${year}-${m}`;
+      const mI=income.filter(r=>r.key===k).reduce((s,r)=>s+r.amt,0);
+      const mE=expenses.filter(r=>r.key===k).reduce((s,r)=>s+r.amt,0);
+      const mMi2=mileage.filter(r=>r.key===k).reduce((s,r)=>s+r.miles,0);
+      const mMiV=mileage.filter(r=>r.key===k).reduce((s,r)=>s+(r.miles*(MILEAGE_RATES[r.type]||0)),0);
+      aInc+=mI; aExp+=mE; aMi+=mMi2; aMiVal+=mMiV;
+      monthly.push({m:MONTHS_LIST[m].slice(0,3),inc:mI,exp:mE});
+      expenses.filter(r=>r.key===k).forEach(r=>{catTotals[r.cat]=(catTotals[r.cat]||0)+r.amt;});
+    }
+    aGiving=expenses.filter(r=>r.key.startsWith(`${year}-`)).filter(r=>r.cat==='Giving / tithe').reduce((s,r)=>s+r.amt,0);
+    const bizMi=mileage.filter(r=>r.key.startsWith(`${year}-`)&&r.type==='Business').reduce((s,r)=>s+r.miles,0);
+    const medMi=mileage.filter(r=>r.key.startsWith(`${year}-`)&&(r.type==='Medical'||r.type==='Charity')).reduce((s,r)=>s+r.miles,0);
+    return {aInc,aExp,aMi,aMiVal,aGiving,monthly,catTotals,bizMi,medMi,surplus:aInc-aExp};
+  };
+
+  const inputSt = { width:'100%', padding:'8px 10px', border:'1.5px solid #E2EAF2', borderRadius:8, fontFamily:'Nunito,sans-serif', fontSize:'0.85rem', color:'#0D1F3C', outline:'none', background:'white' };
+  const selSt = { ...inputSt, cursor:'pointer' };
+  const tabBtnSt = (active) => ({ padding:'8px 14px', borderRadius:7, fontSize:'0.78rem', fontWeight:600, cursor:'pointer', border:'none', background: active ? 'rgba(201,168,76,0.13)' : 'none', color: active ? '#C9A84C' : 'rgba(13,31,60,0.55)', fontFamily:'Nunito,sans-serif', transition:'all 0.15s' });
+  const metricCardSt = { background:'white', border:'1px solid #E2EAF2', borderRadius:10, padding:'1rem', flex:1 };
+
+  return (
+    <div style={{ fontFamily:'Nunito,sans-serif' }}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'1.25rem' }}>
+        <div>
+          <h2 style={{ fontFamily:'Lora,Georgia,serif', fontSize:'1.4rem', fontWeight:700, color:'#0D1F3C' }}>📒 Budget Tracker</h2>
+          <p style={{ fontSize:'0.8rem', color:'#7A8BA8', marginTop:2 }}>Track income, expenses, mileage & reconcile with your bank</p>
+        </div>
+        <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+          <select value={month} onChange={e=>setMonth(parseInt(e.target.value))} style={{...selSt, width:'auto'}}>
+            {MONTHS_LIST.map((m,i) => <option key={i} value={i}>{m}</option>)}
+          </select>
+          <select value={year} onChange={e=>setYear(parseInt(e.target.value))} style={{...selSt, width:'auto'}}>
+            <option value={2025}>2025</option><option value={2026}>2026</option>
+          </select>
+        </div>
+      </div>
+
+      <div style={{ display:'flex', gap:'0.75rem', marginBottom:'1.5rem', flexWrap:'wrap' }}>
+        {[['💰 Income', fmt(totalInc), '#1B4D3C'], ['💸 Expenses', fmt(totalExp), '#B53232'], [surplus>=0?'✨ Surplus':'⚠️ Deficit', (surplus>=0?'+':'-')+fmt(surplus), surplus>=0?'#1B4D3C':'#B53232'], ['🚗 Miles', totalMi.toFixed(1)+' mi', '#0D1F3C'], ['📝 Mile value', fmt(totalMiVal), '#8B6914']].map(([label,val,color]) => (
+          <div key={label} style={metricCardSt}>
+            <div style={{ fontSize:'0.7rem', fontWeight:700, color:'#7A8BA8', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:4 }}>{label}</div>
+            <div style={{ fontFamily:'Lora,Georgia,serif', fontSize:'1.3rem', fontWeight:700, color }}>{val}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display:'flex', gap:4, marginBottom:'1.25rem', borderBottom:'1px solid #E2EAF2', paddingBottom:0 }}>
+        {[['income','💵 Income'],['expenses','🧾 Expenses'],['mileage','🚗 Mileage'],['reconcile','🏦 Reconcile'],['monthly','📊 Monthly'],['annual','📄 Annual/Tax']].map(([id,label]) => (
+          <button key={id} style={tabBtnSt(tab===id)} onClick={()=>setTab(id)}>{label}</button>
+        ))}
+      </div>
+
+      {tab === 'income' && (
+        <div>
+          <div className="card card-p" style={{ marginBottom:'1rem' }}>
+            <div style={{ fontFamily:'Lora,Georgia,serif', fontSize:'1rem', fontWeight:600, color:'#0D1F3C', marginBottom:12 }}>Add income source</div>
+            <div style={{ display:'grid', gridTemplateColumns:'2fr 1.5fr 1fr auto', gap:8 }}>
+              <input style={inputSt} placeholder="Source (e.g. Salary, Freelance)" value={incSrc} onChange={e=>setIncSrc(e.target.value)} />
+              <select style={selSt} value={incCat} onChange={e=>setIncCat(e.target.value)}>
+                {['Primary job','Side business','Freelance','Rental income','Investment','Gift / other'].map(o=><option key={o}>{o}</option>)}
+              </select>
+              <input style={inputSt} type="number" placeholder="Amount" value={incAmt} onChange={e=>setIncAmt(e.target.value)} />
+              <button className="btn btn-navy" style={{ padding:'0 16px', height:38 }} onClick={addIncome}>+ Add</button>
+            </div>
+          </div>
+          <div className="card" style={{ overflow:'hidden' }}>
+            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.85rem' }}>
+              <thead><tr style={{ borderBottom:'1px solid #E2EAF2' }}>{['Source','Category','Amount',''].map(h=><th key={h} style={{ padding:'10px 12px', fontWeight:700, fontSize:'0.72rem', color:'#7A8BA8', textTransform:'uppercase', textAlign:'left' }}>{h}</th>)}</tr></thead>
+              <tbody>
+                {mInc.length === 0 && <tr><td colSpan={4} style={{ padding:'1.5rem', textAlign:'center', color:'#7A8BA8', fontSize:'0.85rem' }}>No income added for this month</td></tr>}
+                {mInc.map(r => <tr key={r.id} style={{ borderBottom:'1px solid #F4F6FA' }}>
+                  <td style={{ padding:'10px 12px', color:'#0D1F3C' }}>{r.src}</td>
+                  <td style={{ padding:'10px 12px' }}><span style={{ background:'#EBF6F1', color:'#1B4D3C', padding:'2px 8px', borderRadius:6, fontSize:'0.72rem', fontWeight:700 }}>{r.cat}</span></td>
+                  <td style={{ padding:'10px 12px', fontWeight:700, color:'#1B4D3C' }}>{fmt(r.amt)}</td>
+                  <td style={{ padding:'10px 12px' }}><button onClick={()=>setIncome(p=>p.filter(x=>x.id!==r.id))} style={{ background:'none', border:'none', cursor:'pointer', color:'#7A8BA8', fontSize:16 }}>🗑</button></td>
+                </tr>)}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {tab === 'expenses' && (
+        <div>
+          <div className="card card-p" style={{ marginBottom:'1rem' }}>
+            <div style={{ fontFamily:'Lora,Georgia,serif', fontSize:'1rem', fontWeight:600, color:'#0D1F3C', marginBottom:12 }}>Add expense</div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 2fr 1.5fr 1fr 1.5fr auto', gap:8 }}>
+              <input style={inputSt} type="date" value={expDate} onChange={e=>setExpDate(e.target.value)} />
+              <input style={inputSt} placeholder="Description" value={expDesc} onChange={e=>setExpDesc(e.target.value)} />
+              <select style={selSt} value={expCat} onChange={e=>setExpCat(e.target.value)}>
+                {['Housing','Food & groceries','Transportation','Utilities','Healthcare','Debt payment','Savings','Giving / tithe','Personal care','Entertainment','Clothing','Education','Other'].map(o=><option key={o}>{o}</option>)}
+              </select>
+              <input style={inputSt} type="number" placeholder="Amount" value={expAmt} onChange={e=>setExpAmt(e.target.value)} />
+              <input style={inputSt} placeholder="Notes (optional)" value={expNotes} onChange={e=>setExpNotes(e.target.value)} />
+              <button className="btn btn-navy" style={{ padding:'0 16px', height:38 }} onClick={addExpense}>+ Add</button>
+            </div>
+          </div>
+          <div className="card" style={{ overflow:'hidden' }}>
+            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.85rem' }}>
+              <thead><tr style={{ borderBottom:'1px solid #E2EAF2' }}>{['Date','Description','Category','Amount','Notes',''].map(h=><th key={h} style={{ padding:'10px 12px', fontWeight:700, fontSize:'0.72rem', color:'#7A8BA8', textTransform:'uppercase', textAlign:'left' }}>{h}</th>)}</tr></thead>
+              <tbody>
+                {mExp.length === 0 && <tr><td colSpan={6} style={{ padding:'1.5rem', textAlign:'center', color:'#7A8BA8', fontSize:'0.85rem' }}>No expenses added for this month</td></tr>}
+                {mExp.map(r => <tr key={r.id} style={{ borderBottom:'1px solid #F4F6FA' }}>
+                  <td style={{ padding:'10px 12px', color:'#7A8BA8', fontSize:'0.8rem' }}>{r.date||'—'}</td>
+                  <td style={{ padding:'10px 12px', color:'#0D1F3C' }}>{r.desc}</td>
+                  <td style={{ padding:'10px 12px' }}><span style={{ background:'#FFF3F3', color:'#B53232', padding:'2px 8px', borderRadius:6, fontSize:'0.72rem', fontWeight:700 }}>{r.cat}</span></td>
+                  <td style={{ padding:'10px 12px', fontWeight:700, color:'#B53232' }}>{fmt(r.amt)}</td>
+                  <td style={{ padding:'10px 12px', color:'#7A8BA8', fontSize:'0.8rem' }}>{r.notes||'—'}</td>
+                  <td style={{ padding:'10px 12px' }}><button onClick={()=>setExpenses(p=>p.filter(x=>x.id!==r.id))} style={{ background:'none', border:'none', cursor:'pointer', color:'#7A8BA8', fontSize:16 }}>🗑</button></td>
+                </tr>)}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {tab === 'mileage' && (
+        <div>
+          <div className="card card-p" style={{ marginBottom:'1rem' }}>
+            <div style={{ fontFamily:'Lora,Georgia,serif', fontSize:'1rem', fontWeight:600, color:'#0D1F3C', marginBottom:12 }}>Log a trip</div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 2fr 1fr 1fr auto', gap:8 }}>
+              <input style={inputSt} type="date" value={milDate} onChange={e=>setMilDate(e.target.value)} />
+              <input style={inputSt} placeholder="Purpose (e.g. Client visit, Medical)" value={milPurpose} onChange={e=>setMilPurpose(e.target.value)} />
+              <input style={inputSt} type="number" placeholder="Miles" value={milMiles} onChange={e=>setMilMiles(e.target.value)} />
+              <select style={selSt} value={milType} onChange={e=>setMilType(e.target.value)}>
+                {['Business','Medical','Charity','Personal'].map(o=><option key={o}>{o}</option>)}
+              </select>
+              <button className="btn btn-navy" style={{ padding:'0 16px', height:38 }} onClick={addMileage}>+ Add</button>
+            </div>
+            <div style={{ fontSize:'0.75rem', color:'#7A8BA8', marginTop:6 }}>IRS 2026: $0.70/mi business · $0.21/mi medical & charity</div>
+          </div>
+          <div className="card" style={{ overflow:'hidden' }}>
+            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.85rem' }}>
+              <thead><tr style={{ borderBottom:'1px solid #E2EAF2' }}>{['Date','Purpose','Type','Miles','Deductible value',''].map(h=><th key={h} style={{ padding:'10px 12px', fontWeight:700, fontSize:'0.72rem', color:'#7A8BA8', textTransform:'uppercase', textAlign:'left' }}>{h}</th>)}</tr></thead>
+              <tbody>
+                {mMil.length === 0 && <tr><td colSpan={6} style={{ padding:'1.5rem', textAlign:'center', color:'#7A8BA8', fontSize:'0.85rem' }}>No trips logged for this month</td></tr>}
+                {mMil.map(r => { const v = r.miles*(MILEAGE_RATES[r.type]||0); return <tr key={r.id} style={{ borderBottom:'1px solid #F4F6FA' }}>
+                  <td style={{ padding:'10px 12px', color:'#7A8BA8', fontSize:'0.8rem' }}>{r.date||'—'}</td>
+                  <td style={{ padding:'10px 12px', color:'#0D1F3C' }}>{r.purpose}</td>
+                  <td style={{ padding:'10px 12px' }}><span style={{ background:'#FDF7E8', color:'#8B6914', padding:'2px 8px', borderRadius:6, fontSize:'0.72rem', fontWeight:700 }}>{r.type}</span></td>
+                  <td style={{ padding:'10px 12px', fontWeight:600 }}>{r.miles.toFixed(1)} mi</td>
+                  <td style={{ padding:'10px 12px', fontWeight:700, color:'#8B6914' }}>{v>0?fmt(v):'—'}</td>
+                  <td style={{ padding:'10px 12px' }}><button onClick={()=>setMileage(p=>p.filter(x=>x.id!==r.id))} style={{ background:'none', border:'none', cursor:'pointer', color:'#7A8BA8', fontSize:16 }}>🗑</button></td>
+                </tr>; })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {tab === 'reconcile' && (
+        <div>
+          <div className="card card-p" style={{ marginBottom:'1rem' }}>
+            <div style={{ fontFamily:'Lora,Georgia,serif', fontSize:'1rem', fontWeight:600, color:'#0D1F3C', marginBottom:12 }}>Upload bank statement (CSV)</div>
+            <label style={{ display:'block', border:'1.5px dashed #E2EAF2', borderRadius:10, padding:'1.5rem', textAlign:'center', cursor:'pointer' }}>
+              <div style={{ fontSize:'2rem', marginBottom:8 }}>📂</div>
+              <div style={{ fontSize:'0.85rem', color:'#7A8BA8' }}><strong style={{ color:'#0D1F3C' }}>Click to upload</strong> your bank CSV</div>
+              <div style={{ fontSize:'0.75rem', color:'#7A8BA8', marginTop:4 }}>Columns needed: Date, Description, Amount</div>
+              <input type="file" accept=".csv" style={{ display:'none' }} onChange={parseCSV} />
+            </label>
+          </div>
+          {bankRows.length > 0 && (
+            <div>
+              <div style={{ display:'flex', gap:'0.75rem', marginBottom:'1rem' }}>
+                {[['Bank rows', bankRows.length, '#0D1F3C'], ['Matched', bankRows.filter(r=>([...mInc,...mExp]).find(e=>Math.abs(Math.abs(e.amt)-Math.abs(r.amt))<0.02)).length, '#1B4D3C'], ['Unmatched', bankRows.filter(r=>!([...mInc,...mExp]).find(e=>Math.abs(Math.abs(e.amt)-Math.abs(r.amt))<0.02)).length, '#B53232']].map(([l,v,c]) => (
+                  <div key={l} style={metricCardSt}><div style={{ fontSize:'0.7rem', fontWeight:700, color:'#7A8BA8', textTransform:'uppercase', marginBottom:4 }}>{l}</div><div style={{ fontFamily:'Lora,Georgia,serif', fontSize:'1.3rem', fontWeight:700, color:c }}>{v}</div></div>
+                ))}
+              </div>
+              {bankRows.map((r,i) => {
+                const match = [...mInc,...mExp].find(e => Math.abs(Math.abs(e.amt)-Math.abs(r.amt))<0.02);
+                return <div key={i} style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 12px', borderRadius:8, border:'1px solid #E2EAF2', marginBottom:8, fontSize:'0.85rem' }}>
+                  <div style={{ width:80, color:'#7A8BA8', fontSize:'0.78rem', flexShrink:0 }}>{r.date}</div>
+                  <div style={{ flex:1, color:'#0D1F3C' }}>{r.desc}</div>
+                  <div style={{ fontWeight:700, color:r.amt<0?'#B53232':'#1B4D3C', width:90, textAlign:'right' }}>{r.amt<0?'-':'+'}${Math.abs(r.amt).toFixed(2)}</div>
+                  <span style={{ padding:'2px 8px', borderRadius:6, fontSize:'0.72rem', fontWeight:700, background:match?'#EBF6F1':'#FDF7E8', color:match?'#1B4D3C':'#8B6914' }}>{match?'✓ Matched':'Unmatched'}</span>
+                </div>;
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === 'monthly' && (
+        <div>
+          <div className="card card-p" style={{ marginBottom:'1rem' }}>
+            <div style={{ fontFamily:'Lora,Georgia,serif', fontSize:'1.1rem', fontWeight:700, color:'#0D1F3C', marginBottom:'1rem' }}>{MONTHS_LIST[month]} {year} summary</div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1rem', marginBottom:'1rem' }}>
+              <div>
+                <div style={{ fontSize:'0.72rem', fontWeight:700, color:'#7A8BA8', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>Income breakdown</div>
+                {mInc.length === 0 && <div style={{ fontSize:'0.85rem', color:'#7A8BA8' }}>No income logged</div>}
+                {mInc.map(r => <div key={r.id} style={{ display:'flex', justifyContent:'space-between', fontSize:'0.85rem', padding:'5px 0', borderBottom:'1px solid #F4F6FA' }}>
+                  <span style={{ color:'#7A8BA8' }}>{r.src}</span><span style={{ fontWeight:700, color:'#1B4D3C' }}>{fmt(r.amt)}</span>
+                </div>)}
+                <div style={{ display:'flex', justifyContent:'space-between', fontSize:'0.85rem', padding:'8px 0', fontWeight:700 }}><span>Total</span><span style={{ color:'#1B4D3C' }}>{fmt(totalInc)}</span></div>
+              </div>
+              <div>
+                <div style={{ fontSize:'0.72rem', fontWeight:700, color:'#7A8BA8', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>Expenses by category</div>
+                {Object.entries(mExp.reduce((acc,r)=>({...acc,[r.cat]:(acc[r.cat]||0)+r.amt}),{})).sort((a,b)=>b[1]-a[1]).map(([cat,amt]) => {
+                  const pct = totalInc > 0 ? ((amt/totalInc)*100).toFixed(0) : 0;
+                  const barW = totalExp > 0 ? (amt/totalExp*100).toFixed(0) : 0;
+                  return <div key={cat} style={{ marginBottom:6 }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', fontSize:'0.78rem', marginBottom:2 }}>
+                      <span style={{ color:'#7A8BA8' }}>{cat}</span>
+                      <span style={{ color:'#0D1F3C' }}>{fmt(amt)} <span style={{ color:'#7A8BA8' }}>({pct}%)</span></span>
+                    </div>
+                    <div style={{ height:5, background:'#E2EAF2', borderRadius:3, overflow:'hidden' }}>
+                      <div style={{ height:'100%', background:'#B53232', borderRadius:3, width:`${barW}%` }} />
+                    </div>
+                  </div>;
+                })}
+                <div style={{ display:'flex', justifyContent:'space-between', fontSize:'0.85rem', padding:'8px 0', fontWeight:700, borderTop:'1px solid #E2EAF2', marginTop:4 }}><span>Total</span><span style={{ color:'#B53232' }}>{fmt(totalExp)}</span></div>
+              </div>
+            </div>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px', background:'#FAFAF6', borderRadius:8 }}>
+              <span style={{ fontSize:'0.9rem', fontWeight:700 }}>Net {surplus>=0?'surplus':'deficit'}</span>
+              <span style={{ fontFamily:'Lora,Georgia,serif', fontSize:'1.5rem', fontWeight:700, color:surplus>=0?'#1B4D3C':'#B53232' }}>{surplus>=0?'+':'-'}{fmt(surplus)}</span>
+            </div>
+          </div>
+          <div className="card card-p">
+            <div style={{ fontFamily:'Lora,Georgia,serif', fontSize:'1rem', fontWeight:700, color:'#0D1F3C', marginBottom:'1rem' }}>💡 Constructive advice for {MONTHS_LIST[month]}</div>
+            {generateAdvice().map((a,i) => (
+              <div key={i} style={{ display:'flex', gap:10, padding:'10px', borderRadius:8, border:'1px solid #E2EAF2', marginBottom:8 }}>
+                <span style={{ fontSize:'1.1rem', flexShrink:0 }}>{a.icon}</span>
+                <span style={{ fontSize:'0.85rem', color:'#3E506B', lineHeight:1.6 }}>{a.text}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {tab === 'annual' && (() => {
+        const a = annualStats();
+        const totalDeduct = a.bizMi*0.70 + a.medMi*0.21 + a.aGiving;
+        const maxBar = Math.max(...a.monthly.map(d=>Math.max(d.inc,d.exp)),1);
+        return (
+          <div>
+            <div className="card card-p" style={{ marginBottom:'1rem' }}>
+              <div style={{ fontFamily:'Lora,Georgia,serif', fontSize:'1.1rem', fontWeight:700, color:'#0D1F3C', marginBottom:'1rem' }}>📄 {year} annual summary</div>
+              <div style={{ display:'flex', gap:'0.75rem', marginBottom:'1.25rem', flexWrap:'wrap' }}>
+                {[['Total income',fmt(a.aInc),'#1B4D3C'],['Total expenses',fmt(a.aExp),'#B53232'],['Net '+(a.surplus>=0?'surplus':'deficit'),(a.surplus>=0?'+':'-')+fmt(a.surplus),a.surplus>=0?'#1B4D3C':'#B53232'],['Total giving',fmt(a.aGiving),'#8B6914']].map(([l,v,c])=>(
+                  <div key={l} style={metricCardSt}><div style={{ fontSize:'0.7rem', fontWeight:700, color:'#7A8BA8', textTransform:'uppercase', marginBottom:4 }}>{l}</div><div style={{ fontFamily:'Lora,Georgia,serif', fontSize:'1.2rem', fontWeight:700, color:c }}>{v}</div></div>
+                ))}
+              </div>
+              <div style={{ fontSize:'0.72rem', fontWeight:700, color:'#7A8BA8', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:10 }}>Monthly income vs expenses</div>
+              {a.monthly.map(d => (
+                <div key={d.m} style={{ display:'flex', alignItems:'center', gap:8, marginBottom:5 }}>
+                  <span style={{ width:28, fontSize:'0.75rem', color:'#7A8BA8' }}>{d.m}</span>
+                  <div style={{ flex:1 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:4, marginBottom:2 }}>
+                      <div style={{ flex:1, height:6, background:'#E2EAF2', borderRadius:3, overflow:'hidden' }}><div style={{ height:'100%', background:'#1B4D3C', borderRadius:3, width:`${(d.inc/maxBar*100).toFixed(0)}%` }}/></div>
+                      <span style={{ fontSize:'0.72rem', color:'#1B4D3C', width:65 }}>{d.inc>0?fmt(d.inc):''}</span>
+                    </div>
+                    <div style={{ display:'flex', alignItems:'center', gap:4 }}>
+                      <div style={{ flex:1, height:6, background:'#E2EAF2', borderRadius:3, overflow:'hidden' }}><div style={{ height:'100%', background:'#B53232', borderRadius:3, width:`${(d.exp/maxBar*100).toFixed(0)}%` }}/></div>
+                      <span style={{ fontSize:'0.72rem', color:'#B53232', width:65 }}>{d.exp>0?fmt(d.exp):''}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <div style={{ display:'flex', gap:16, marginTop:8, fontSize:'0.75rem', color:'#7A8BA8' }}>
+                <span style={{ display:'flex', alignItems:'center', gap:4 }}><span style={{ width:10, height:10, background:'#1B4D3C', borderRadius:2, display:'inline-block' }}/> Income</span>
+                <span style={{ display:'flex', alignItems:'center', gap:4 }}><span style={{ width:10, height:10, background:'#B53232', borderRadius:2, display:'inline-block' }}/> Expenses</span>
+              </div>
+            </div>
+            <div className="card card-p" style={{ marginBottom:'1rem' }}>
+              <div style={{ fontFamily:'Lora,Georgia,serif', fontSize:'1rem', fontWeight:700, color:'#0D1F3C', marginBottom:4 }}>🧾 Tax preparation summary — {year}</div>
+              <div style={{ fontSize:'0.78rem', color:'#7A8BA8', marginBottom:'1rem' }}>Review with your tax professional. This is a summary tool, not tax advice.</div>
+              <div style={{ fontSize:'0.82rem', fontWeight:700, color:'#0D1F3C', marginBottom:8 }}>Potential deductions</div>
+              {[['Business mileage',`${a.bizMi.toFixed(1)} mi × $0.70 = ${fmt(a.bizMi*0.70)}`],['Medical/charity mileage',`${a.medMi.toFixed(1)} mi × $0.21 = ${fmt(a.medMi*0.21)}`],['Charitable giving',fmt(a.aGiving)]].map(([l,v])=>(
+                <div key={l} style={{ display:'flex', justifyContent:'space-between', padding:'7px 0', borderBottom:'1px solid #F4F6FA', fontSize:'0.85rem' }}>
+                  <span style={{ color:'#7A8BA8' }}>{l}</span><span style={{ fontWeight:700 }}>{v}</span>
+                </div>
+              ))}
+              <div style={{ display:'flex', justifyContent:'space-between', padding:'10px 0', fontSize:'0.9rem', fontWeight:700 }}>
+                <span>Total estimated deductions</span><span style={{ color:'#1B4D3C' }}>{fmt(totalDeduct)}</span>
+              </div>
+              <div style={{ marginTop:'1rem', fontSize:'0.82rem', fontWeight:700, color:'#0D1F3C', marginBottom:8 }}>Annual expenses by category</div>
+              {Object.entries(a.catTotals).sort((x,y)=>y[1]-x[1]).map(([cat,amt])=>(
+                <div key={cat} style={{ display:'flex', justifyContent:'space-between', padding:'7px 0', borderBottom:'1px solid #F4F6FA', fontSize:'0.85rem' }}>
+                  <span style={{ color:'#7A8BA8' }}>{cat}</span><span style={{ fontWeight:700 }}>{fmt(amt)}</span>
+                </div>
+              ))}
+              {Object.keys(a.catTotals).length === 0 && <div style={{ fontSize:'0.85rem', color:'#7A8BA8', padding:'8px 0' }}>No expenses logged for this year yet</div>}
+              <div style={{ marginTop:'1rem', padding:'12px', background:'#EBF0F8', borderRadius:8, fontSize:'0.82rem', color:'#162E56', lineHeight:1.6 }}>
+                ℹ️ Keep all receipts and mileage logs. Share this summary with your CPA for Schedule C, Schedule A, and charitable deduction documentation.
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
