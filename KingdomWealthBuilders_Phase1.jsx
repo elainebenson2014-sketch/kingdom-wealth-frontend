@@ -5,12 +5,31 @@ import React from "react";
 let supabase = null;
 const getSupabase = async () => {
   if (supabase) return supabase;
-  const { createClient } = await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm");
-  supabase = createClient(
-    import.meta.env.VITE_SUPABASE_URL || "",
-    import.meta.env.VITE_SUPABASE_ANON_KEY || ""
-  );
-  return supabase;
+  try {
+    const { createClient } = await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm");
+    const url = import.meta.env.VITE_SUPABASE_URL || "";
+    const key = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
+    if (!url || !key) throw new Error("Missing Supabase config");
+    supabase = createClient(url, key);
+    return supabase;
+  } catch(e) {
+    console.error("Supabase load failed:", e);
+    // Return a mock client that silently fails so the app still works
+    return {
+      auth: {
+        getSession: async () => ({ data: { session: null } }),
+        onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+        signUp: async () => ({ data: null, error: { message: "Auth unavailable" } }),
+        signInWithPassword: async () => ({ data: null, error: { message: "Auth unavailable" } }),
+        signOut: async () => {},
+      },
+      from: () => ({
+        select: () => ({ eq: () => ({ single: async () => ({ data: null }) }), order: () => ({ limit: () => ({ single: async () => ({ data: null }) }) }) }),
+        upsert: async () => ({}),
+        insert: async () => ({}),
+      }),
+    };
+  }
 };
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
@@ -563,7 +582,11 @@ export default function App() {
 
   // ── Check for existing session on mount ───────────────────────────────────
   useEffect(() => {
+    // Add a 5 second timeout so the app never hangs
+    const timeout = setTimeout(() => setLoadingSession(false), 5000);
+
     getSupabase().then(sb => sb.auth.getSession()).then(async ({ data: { session } }) => {
+      clearTimeout(timeout);
       if (session?.user) {
         const u = session.user;
         const name = u.user_metadata?.name || u.email?.split("@")[0] || "Friend";
@@ -571,6 +594,9 @@ export default function App() {
         const savedPlan = await loadPlan(u);
         if (savedPlan) { setPlan(savedPlan); setPage("dashboard"); }
       }
+      setLoadingSession(false);
+    }).catch(() => {
+      clearTimeout(timeout);
       setLoadingSession(false);
     });
 
