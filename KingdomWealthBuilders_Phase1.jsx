@@ -324,14 +324,47 @@ When someone shares their financial situation:
 
 Format with **bold** for key points, use simple bullet lists, keep responses warm and human.`;
 
-async function askCoach(messages) {
+async function askCoach(messages, userContext) {
+  const personalityGuide = {
+    anxious: "This person is anxious about money — be extra gentle, reassuring, and calm. Never overwhelm. Focus on one step at a time.",
+    spender: "This person is a natural spender — celebrate their wins generously, use motivating language, and make saving feel exciting not restrictive.",
+    saver: "This person is already a saver — challenge them to give more generously and invest boldly. They're ready for the next level.",
+    confused: "This person feels confused about money — use very simple language, avoid jargon, and explain everything step by step.",
+    motivated: "This person is highly motivated — give them bold, ambitious targets and celebrate their drive. Match their energy.",
+    rebuilding: "This person is rebuilding after setbacks — lead with grace, zero shame, and radical encouragement. Every step forward is a miracle.",
+  };
+  const faithGuide = {
+    active: "They are an active tither — reference biblical stewardship naturally and frequently.",
+    tithing_start: "They want to start tithing — gently encourage giving as a first step, not last.",
+    faith_guided: "Faith guides them but they don't tithe yet — reference scripture naturally, encourage generosity without pressure.",
+    exploring: "They are exploring faith-based finance — introduce biblical principles gently as wisdom, not dogma.",
+    secular: "They are not religious — focus on practical financial wisdom. Skip religious references unless they bring it up.",
+  };
+  const personality = userContext?.moneyPersonality;
+  const faith = userContext?.faithLevel;
+  const household = userContext?.household;
+  const dependents = userContext?.dependents;
+  const systemPrompt = `You are the Kingdom Wealth Builders AI Coach — a warm, expert, faith-centered financial stewardship coach.
+
+${personality ? `PERSONALITY GUIDANCE: ${personalityGuide[personality] || ""}` : ""}
+${faith ? `FAITH GUIDANCE: ${faithGuide[faith] || ""}` : ""}
+${household ? `HOUSEHOLD CONTEXT: ${household}${dependents && dependents !== "0" ? `, ${dependents} dependent(s)` : ""}` : ""}
+
+Core approach:
+- Deeply encouraging, never shame-based or cold
+- Blend biblical wisdom naturally with practical financial expertise (adjust based on faith level above)
+- Teach one concept at a time — never overwhelm
+- Celebrate every small win enthusiastically
+- Give ONE clear, actionable next step per response
+- Format with **bold** for key points, use simple bullet lists, keep responses warm and human`;
+
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       model: "claude-sonnet-4-20250514",
       max_tokens: 1000,
-      system: SYSTEM_PROMPT,
+      system: systemPrompt,
       messages: messages.map(m => ({ role: m.role, content: m.content })),
     }),
   });
@@ -341,41 +374,93 @@ async function askCoach(messages) {
 }
 
 function buildPlan(form) {
-  const inc = parseFloat(form.income) || 4000;
-  const exp = parseFloat(form.expenses) || 3000;
-  const debt = parseFloat(form.debt) || 8000;
+  const toMonthly = (amt, freq) => { const n=parseFloat(amt)||0; if(freq==="weekly")return n*4.33; if(freq==="biweekly")return n*2.167; if(freq==="annual")return n/12; return n; };
+  const incStreams = form.incomeStreams || [];
+  const inc = incStreams.length > 0 ? Math.round(incStreams.reduce((s,r)=>s+toMonthly(r.amt,r.freq),0)) : (parseFloat(form.income)||4000);
+  const expCatMap = form.expenseCategories || {};
+  const expFromCats = Object.values(expCatMap).reduce((s,v)=>s+(parseFloat(v)||0),0);
+  const exp = expFromCats > 0 ? Math.round(expFromCats) : (parseFloat(form.expenses)||3000);
   const sav = parseFloat(form.savings) || 500;
   const surplus = inc - exp;
+  const totalAssets = Object.values(form.assets||{}).reduce((s,v)=>s+(parseFloat(v)||0),0);
+
+  const expCatKeys = [
+    { cat:"Housing & Utilities", key:"housing", color:"#0D1F3C" },
+    { cat:"Food & Groceries", key:"food", color:"#1B4D3C" },
+    { cat:"Transportation", key:"transport", color:"#C9A84C" },
+    { cat:"Healthcare", key:"healthcare", color:"#246B52" },
+    { cat:"Personal & Entertainment", key:"personal", color:"#7A8BA8" },
+    { cat:"Other Expenses", key:"other", color:"#B53232" },
+  ];
+  const budget = expFromCats > 0
+    ? expCatKeys.map(b=>({cat:b.cat,color:b.color,amount:Math.round(parseFloat(expCatMap[b.key])||0),pct:inc>0?Math.round((parseFloat(expCatMap[b.key])||0)/inc*100):0})).filter(b=>b.amount>0)
+    : [{cat:"Housing & Utilities",pct:30,color:"#0D1F3C"},{cat:"Food & Groceries",pct:12,color:"#1B4D3C"},{cat:"Transportation",pct:10,color:"#C9A84C"},{cat:"Debt Payments",pct:15,color:"#B53232"},{cat:"Savings & Giving",pct:13,color:"#246B52"},{cat:"Personal & Other",pct:20,color:"#7A8BA8"}].map(b=>({...b,amount:Math.round(inc*b.pct/100)}));
+
+  // Use real debts entered by user, sorted by snowball (smallest balance first)
+  const userDebts = (form.debts || []).length > 0
+    ? [...form.debts].sort((a, b) => a.bal - b.bal).map((d, i) => ({
+        name: d.name,
+        bal: parseFloat(d.bal) || 0,
+        rate: d.rate ? `${d.rate}%` : '—',
+        payment: parseFloat(d.payment) || 0,
+        paidPct: 0,
+        priority: i + 1,
+      }))
+    : [{ name: "Add your debts in the intake form", bal: 0, rate: "—", payment: 0, paidPct: 0, priority: 1 }];
+
+  const debt = userDebts.reduce((s, d) => s + d.bal, 0);
 
   return {
-    user: { name: form.name, email: form.email, goals: form.goals, stress: form.stress },
-    income: inc, expenses: exp, debt, savings: sav, surplus,
-    budget: [
-      { cat: "Housing & Utilities", pct: 30, color: "#0D1F3C" },
-      { cat: "Food & Groceries", pct: 12, color: "#1B4D3C" },
-      { cat: "Transportation", pct: 10, color: "#C9A84C" },
-      { cat: "Debt Payments", pct: 15, color: "#B53232" },
-      { cat: "Savings & Giving", pct: 13, color: "#246B52" },
-      { cat: "Personal & Other", pct: 20, color: "#7A8BA8" },
-    ].map(b => ({ ...b, amount: Math.round(inc * b.pct / 100) })),
-    debts: [
-      { name: "Credit Card (High Interest)", bal: Math.round(debt * 0.45), rate: "21.9%", payment: Math.round(debt * 0.035), paidPct: 14, priority: 1 },
-      { name: "Personal Loan", bal: Math.round(debt * 0.35), rate: "12.5%", payment: Math.round(debt * 0.028), paidPct: 28, priority: 2 },
-      { name: "Medical / Other", bal: Math.round(debt * 0.20), rate: "0%", payment: Math.round(debt * 0.015), paidPct: 48, priority: 3 },
-    ],
-    savingsGoals: [
-      { name: "Emergency Fund (3 months)", target: Math.round(inc * 3), current: sav, icon: "🛡️" },
-      { name: "Tithe & Giving Fund", target: Math.round(inc * 0.1 * 12), current: Math.round(sav * 0.15), icon: "💛" },
-      { name: "Future Vision Fund", target: 5000, current: Math.round(sav * 0.1), icon: "🌱" },
-    ],
-    actions: [
-      { text: "Review your last 7 days of spending — categorize every transaction", tag: "budget" },
-      { text: `Make an extra $${Math.max(50, Math.round(surplus * 0.3))} payment toward your highest-interest debt this week`, tag: "debt" },
-      { text: "Set up an automatic $50 transfer to your Emergency Fund this Friday", tag: "savings" },
-      { text: "Read Proverbs 3 and write down one principle you can apply to your finances today", tag: "faith" },
-    ],
+    user: { name: form.name, email: form.email, phone: form.phone, goals: form.goals, stress: form.stress, household: form.household, dependents: form.dependents, moneyPersonality: form.moneyPersonality, faithLevel: form.faithLevel, timeline: form.timeline },
+    income: inc, expenses: exp, debt, savings: sav, surplus, totalAssets,
+    incomeStreams: incStreams,
+    budget,
+    debts: userDebts,
+    savingsGoals: (() => {
+      const goals = form.selectedGoals || [];
+      const base = [];
+      if (goals.includes("emergency_fund") || goals.length === 0)
+        base.push({ name: "Emergency Fund (3 months)", target: Math.round(inc * 3), current: sav, icon: "🛡️" });
+      if (goals.includes("give_more") || goals.includes("generational") || goals.length === 0)
+        base.push({ name: "Tithe & Giving Fund", target: Math.round(inc * 0.1 * 12), current: Math.round(sav * 0.15), icon: "💛" });
+      if (goals.includes("save_home"))
+        base.push({ name: "Home Down Payment", target: 20000, current: Math.round(sav * 0.2), icon: "🏠" });
+      if (goals.includes("save_education"))
+        base.push({ name: "Education Fund", target: 10000, current: Math.round(sav * 0.1), icon: "🎓" });
+      if (goals.includes("generational"))
+        base.push({ name: "Legacy / Investment Fund", target: 25000, current: Math.round(sav * 0.05), icon: "👑" });
+      if (base.length === 0)
+        base.push({ name: "Future Vision Fund", target: 5000, current: Math.round(sav * 0.1), icon: "🌱" });
+      return base;
+    })(),
+    actions: (() => {
+      const goals = form.selectedGoals || [];
+      const acts = [
+        { text: "Review your last 7 days of spending — categorize every transaction", tag: "budget" },
+      ];
+      if (goals.includes("payoff_debt") || form.debts?.length > 0)
+        acts.push({ text: `Make an extra $${Math.max(50, Math.round(surplus * 0.3))} payment toward your smallest debt this week`, tag: "debt" });
+      if (goals.includes("emergency_fund") || goals.length === 0)
+        acts.push({ text: "Set up an automatic $50 transfer to your Emergency Fund this Friday", tag: "savings" });
+      if (goals.includes("give_more"))
+        acts.push({ text: `Set up a recurring $${Math.round(inc * 0.1)} monthly tithe or donation this week`, tag: "savings" });
+      if (goals.includes("increase_income"))
+        acts.push({ text: "List 3 skills you have that others would pay for — explore one side income idea", tag: "budget" });
+      acts.push({ text: "Read Proverbs 3 and write down one principle you can apply to your finances today", tag: "faith" });
+      return acts.slice(0, 4);
+    })(),
     scripture: { text: "Commit to the Lord whatever you do, and he will establish your plans.", ref: "Proverbs 16:3" },
-    encouragement: `${form.name}, the fact that you're here today is already an act of courage and faith. You have a surplus to work with — that's your tool for transformation. Every wise dollar you put toward your debt and savings is a seed planted. Stay consistent, stay faithful. God honors diligent stewardship.`,
+    encouragement: (() => {
+      const p = form.moneyPersonality;
+      const name = form.name || "Friend";
+      if (p === "anxious") return `${name}, I want you to take a deep breath. You don't have to figure everything out today. You've already done the hard part — showing up. We'll take this one step at a time, together.`;
+      if (p === "spender") return `${name}, your generosity and enjoyment of life are beautiful qualities. Now let's channel that same energy into building something that lasts. Your future self is going to thank you for starting today.`;
+      if (p === "saver") return `${name}, you already have the discipline — that's the hardest part. Now let's put that discipline to work at a higher level — more giving, smarter investing, and building a legacy that outlasts you.`;
+      if (p === "confused") return `${name}, feeling confused about money is more common than you think — and the fact that you're here means you're already ahead. We'll make everything simple and clear, one concept at a time.`;
+      if (p === "motivated") return `${name}, your energy is exactly what this journey needs. Let's channel it into a plan that matches your drive. You're not here to play small — let's build something extraordinary.`;
+      if (p === "rebuilding") return `${name}, setbacks are not the end of your story — they're part of it. Every person who has ever built something meaningful has had to rebuild at some point. Your comeback starts today.`;
+      return `${name}, the fact that you're here today is already an act of courage and faith. God honors diligent stewardship — your journey starts right now.`;
+    })(),
     devotional: {
       day: "This Week",
       title: "Money as a Tool, Not a Master",
@@ -597,10 +682,18 @@ function LandingPage({ onStart }) {
 function IntakePage({ user, onComplete }) {
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({ name: user?.name || "", email: user?.email || "", income: "", expenses: "", debt: "", savings: "", goals: "", stress: "", timeline: "1-2 years" });
+  const [form, setForm] = useState({ name: user?.name || "", email: user?.email || "", income: "", expenses: "", savings: "", goals: "", stress: "", timeline: "1-2 years", debts: [] });
+  const [debtEntry, setDebtEntry] = useState({ name: "", bal: "", rate: "", payment: "" });
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
-  const steps = ["Personal Info", "Your Finances", "Goals & Vision", "Review"];
+  const steps = ["Personal Info", "Your Finances", "Your Debts", "Goals & Vision", "Review"];
   const surplus = parseFloat(form.income || 0) - parseFloat(form.expenses || 0);
+
+  const addDebt = () => {
+    if (!debtEntry.name || !debtEntry.bal) return;
+    setForm(f => ({ ...f, debts: [...f.debts, { ...debtEntry, id: Date.now() }] }));
+    setDebtEntry({ name: "", bal: "", rate: "", payment: "" });
+  };
+  const removeDebt = (id) => setForm(f => ({ ...f, debts: f.debts.filter(d => d.id !== id) }));
 
   const submit = () => {
     setLoading(true);
@@ -619,76 +712,633 @@ function IntakePage({ user, onComplete }) {
     <div className="intake-page">
       <div className="intake-wrap">
         <div className="step-label">Step {step + 1} of {steps.length} — {steps[step]}</div>
-        <h1 className="intake-h1">{["Let's Get to Know You", "Your Financial Picture", "Your Goals & Vision", "Review & Build Your Plan"][step]}</h1>
-        <p className="intake-sub">{["Your information is private and only used to build your personalized plan.", "Be honest — this creates the most accurate and helpful plan for you.", "Dream big. We'll build a plan that honors God and moves you toward your calling.", "Everything looks great. Let's generate your personalized Kingdom Wealth plan."][step]}</p>
+        <h1 className="intake-h1">{["Let's Get to Know You", "Your Financial Picture", "Your Debts", "Your Goals & Vision", "Review & Build Your Plan"][step]}</h1>
+        <p className="intake-sub">{["Your information is private and only used to build your personalized plan.", "Be honest — this creates the most accurate and helpful plan for you.", "List each debt individually — this powers your personalized snowball payoff strategy.", "Dream big. We'll build a plan that honors God and moves you toward your calling.", "Everything looks great. Let's generate your personalized Kingdom Wealth plan."][step]}</p>
         <div className="progress-bar"><div className="progress-fill" style={{ width: `${((step + 1) / steps.length) * 100}%` }} /></div>
 
         <div className="card card-p">
-          {step === 0 && (
-            <>
-              <div className="form-row">
-                <div className="form-group"><label className="form-label">Full Name</label><input className="form-input" placeholder="Your full name" value={form.name} onChange={e => set("name", e.target.value)} /></div>
-                <div className="form-group"><label className="form-label">Email Address</label><input className="form-input" type="email" placeholder="you@email.com" value={form.email} onChange={e => set("email", e.target.value)} /></div>
-              </div>
-              <div className="form-group">
-                <label className="form-label">Financial Timeline</label>
-                <select className="form-select" value={form.timeline} onChange={e => set("timeline", e.target.value)}>
-                  <option value="6 months">6 months — Quick wins and momentum</option>
-                  <option value="1-2 years">1–2 years — Steady, meaningful progress</option>
-                  <option value="3-5 years">3–5 years — Deep transformation</option>
-                  <option value="5+ years">5+ years — Generational wealth & legacy</option>
-                </select>
-              </div>
-            </>
-          )}
+          {step === 0 && (() => {
+            const moneyPersonalities = [
+              { id: "anxious", icon: "😟", label: "Anxious", desc: "Money stresses me out — I avoid thinking about it" },
+              { id: "spender", icon: "💸", label: "Spender", desc: "I enjoy spending and struggle to save consistently" },
+              { id: "saver", icon: "🐿️", label: "Saver", desc: "I save naturally but could invest and give more" },
+              { id: "confused", icon: "🤷", label: "Confused", desc: "I don't really understand where my money goes" },
+              { id: "motivated", icon: "🔥", label: "Motivated", desc: "I'm ready to make big changes and stay disciplined" },
+              { id: "rebuilding", icon: "🌱", label: "Rebuilding", desc: "I've had setbacks and I'm starting fresh" },
+            ];
+            const faithLevels = [
+              { id: "active", label: "Active church member & tither" },
+              { id: "tithing_start", label: "Want to start tithing" },
+              { id: "faith_guided", label: "Faith guides my decisions but I don't tithe yet" },
+              { id: "exploring", label: "Exploring faith-based finances" },
+              { id: "secular", label: "Not religious — just want a good plan" },
+            ];
+            return (
+              <>
+                {/* Name & Contact */}
+                <div style={{ marginBottom:"1.25rem" }}>
+                  <div style={{ fontSize:"0.82rem", fontWeight:700, color:"#0D1F3C", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:10 }}>👤 About you</div>
+                  <div className="form-row" style={{ marginBottom:8 }}>
+                    <div className="form-group"><label className="form-label">Full Name</label><input className="form-input" placeholder="Your full name" value={form.name} onChange={e => set("name", e.target.value)} /></div>
+                    <div className="form-group"><label className="form-label">Email Address</label><input className="form-input" type="email" placeholder="you@email.com" value={form.email} onChange={e => set("email", e.target.value)} /></div>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Phone Number <span>optional — for weekly check-in reminders</span></label>
+                    <input className="form-input" type="tel" placeholder="(555) 000-0000" value={form.phone||""} onChange={e => set("phone", e.target.value)} />
+                  </div>
+                </div>
 
-          {step === 1 && (
+                <div style={{ height:1, background:"#E2EAF2", margin:"0 0 1.25rem" }} />
+
+                {/* Household */}
+                <div style={{ marginBottom:"1.25rem" }}>
+                  <div style={{ fontSize:"0.82rem", fontWeight:700, color:"#0D1F3C", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:10 }}>🏠 Your household</div>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label className="form-label">Household type</label>
+                      <select className="form-select" value={form.household||"single"} onChange={e => set("household", e.target.value)}>
+                        <option value="single">Single — just me</option>
+                        <option value="married">Married / partnered, no kids</option>
+                        <option value="married_kids">Married / partnered with kids</option>
+                        <option value="single_parent">Single parent</option>
+                        <option value="other">Other household</option>
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Number of dependents <span>children or others you support</span></label>
+                      <select className="form-select" value={form.dependents||"0"} onChange={e => set("dependents", e.target.value)}>
+                        <option value="0">0 — no dependents</option>
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4+">4 or more</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ height:1, background:"#E2EAF2", margin:"0 0 1.25rem" }} />
+
+                {/* Financial Timeline */}
+                <div style={{ marginBottom:"1.25rem" }}>
+                  <div style={{ fontSize:"0.82rem", fontWeight:700, color:"#0D1F3C", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:10 }}>📅 Your timeline</div>
+                  <div className="form-group">
+                    <label className="form-label">How long are you committed to this journey?</label>
+                    <select className="form-select" value={form.timeline} onChange={e => set("timeline", e.target.value)}>
+                      <option value="6 months">6 months — Quick wins and momentum</option>
+                      <option value="1-2 years">1–2 years — Steady, meaningful progress</option>
+                      <option value="3-5 years">3–5 years — Deep transformation</option>
+                      <option value="5+ years">5+ years — Generational wealth & legacy</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div style={{ height:1, background:"#E2EAF2", margin:"0 0 1.25rem" }} />
+
+                {/* Money Personality */}
+                <div style={{ marginBottom:"1.25rem" }}>
+                  <div style={{ fontSize:"0.82rem", fontWeight:700, color:"#0D1F3C", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:4 }}>💭 Your money personality</div>
+                  <div style={{ fontSize:"0.75rem", color:"#7A8BA8", marginBottom:10 }}>Be honest — this helps your AI Coach speak to you in the right way</div>
+                  <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:8 }}>
+                    {moneyPersonalities.map(p => {
+                      const selected = form.moneyPersonality === p.id;
+                      return (
+                        <div key={p.id} onClick={() => set("moneyPersonality", p.id)} style={{ padding:"10px 12px", borderRadius:10, border: selected ? "2px solid #C9A84C" : "1.5px solid #E2EAF2", background: selected ? "#FDF7E8" : "white", cursor:"pointer", transition:"all 0.15s" }}>
+                          <div style={{ fontSize:"1.3rem", marginBottom:4 }}>{p.icon}</div>
+                          <div style={{ fontSize:"0.82rem", fontWeight:700, color:"#0D1F3C", marginBottom:2 }}>{p.label}</div>
+                          <div style={{ fontSize:"0.72rem", color:"#7A8BA8", lineHeight:1.4 }}>{p.desc}</div>
+                          {selected && <div style={{ marginTop:4, fontSize:"0.68rem", fontWeight:700, color:"#8B6914" }}>✓ Selected</div>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div style={{ height:1, background:"#E2EAF2", margin:"0 0 1.25rem" }} />
+
+                {/* Faith Context */}
+                <div>
+                  <div style={{ fontSize:"0.82rem", fontWeight:700, color:"#0D1F3C", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:4 }}>✝️ Faith & giving context</div>
+                  <div style={{ fontSize:"0.75rem", color:"#7A8BA8", marginBottom:10 }}>Helps your coach give relevant stewardship guidance — all are welcome here</div>
+                  <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                    {faithLevels.map(f => {
+                      const selected = form.faithLevel === f.id;
+                      return (
+                        <div key={f.id} onClick={() => set("faithLevel", f.id)} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 14px", borderRadius:8, border: selected ? "2px solid #C9A84C" : "1.5px solid #E2EAF2", background: selected ? "#FDF7E8" : "white", cursor:"pointer", transition:"all 0.15s" }}>
+                          <div style={{ width:18, height:18, borderRadius:"50%", border: selected ? "none" : "2px solid #E2EAF2", background: selected ? "#C9A84C" : "white", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, color:"white", fontWeight:700 }}>{selected ? "✓" : ""}</div>
+                          <span style={{ fontSize:"0.85rem", color:"#0D1F3C", fontWeight: selected ? 700 : 400 }}>{f.label}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
+            );
+          })()}
+
+          {step === 1 && (() => {
+            const incomeStreams = form.incomeStreams || [];
+            const expenseCategories = form.expenseCategories || { housing: "", food: "", transport: "", utilities: "", healthcare: "", personal: "", other: "" };
+            const payFreq = form.payFreq || "monthly";
+            const assets = form.assets || { checking: "", car: "", home: "", retirement: "", other: "" };
+            const [newIncSrc, setNewIncSrc] = useState("");
+            const [newIncAmt, setNewIncAmt] = useState("");
+            const [newIncFreq, setNewIncFreq] = useState("monthly");
+            const [newIncCat, setNewIncCat] = useState("Primary job");
+
+            const toMonthly = (amt, freq) => {
+              const n = parseFloat(amt) || 0;
+              if (freq === "weekly") return n * 4.33;
+              if (freq === "biweekly") return n * 2.167;
+              if (freq === "annual") return n / 12;
+              return n;
+            };
+
+            const totalMonthlyInc = incomeStreams.reduce((s, r) => s + toMonthly(r.amt, r.freq), 0);
+            const expCats = [
+              { key: "housing", label: "Housing & Utilities", color: "#0D1F3C", hint: "Rent/mortgage, electric, water, internet" },
+              { key: "food", label: "Food & Groceries", color: "#1B4D3C", hint: "Groceries, restaurants, coffee" },
+              { key: "transport", label: "Transportation", color: "#C9A84C", hint: "Car payment, gas, insurance, bus" },
+              { key: "healthcare", label: "Healthcare", color: "#246B52", hint: "Insurance, prescriptions, copays" },
+              { key: "personal", label: "Personal & Entertainment", color: "#7A8BA8", hint: "Clothing, subscriptions, dining out" },
+              { key: "other", label: "Other Expenses", color: "#B53232", hint: "Anything not listed above" },
+            ];
+            const totalMonthlyExp = expCats.reduce((s, c) => s + (parseFloat(expenseCategories[c.key]) || 0), 0);
+            const totalAssets = Object.values(assets).reduce((s, v) => s + (parseFloat(v) || 0), 0);
+            const liveSurplus = totalMonthlyInc - totalMonthlyExp;
+
+            const addIncomeStream = () => {
+              if (!newIncSrc || !newIncAmt) return;
+              const monthly = toMonthly(newIncAmt, newIncFreq);
+              setForm(f => ({ ...f, incomeStreams: [...(f.incomeStreams||[]), { id: Date.now(), src: newIncSrc, amt: newIncAmt, freq: newIncFreq, cat: newIncCat, monthly: Math.round(monthly) }], income: String(Math.round(totalMonthlyInc + monthly)) }));
+              setNewIncSrc(""); setNewIncAmt("");
+            };
+
+            const removeStream = (id) => {
+              setForm(f => {
+                const updated = (f.incomeStreams||[]).filter(r => r.id !== id);
+                const newTotal = updated.reduce((s,r) => s + toMonthly(r.amt, r.freq), 0);
+                return { ...f, incomeStreams: updated, income: String(Math.round(newTotal)) };
+              });
+            };
+
+            const setExpCat = (key, val) => {
+              const updated = { ...expenseCategories, [key]: val };
+              const total = expCats.reduce((s,c) => s + (parseFloat(updated[c.key])||0), 0);
+              setForm(f => ({ ...f, expenseCategories: updated, expenses: String(Math.round(total)) }));
+            };
+
+            const setAsset = (key, val) => {
+              const updated = { ...assets, [key]: val };
+              const total = Object.values(updated).reduce((s,v) => s+(parseFloat(v)||0), 0);
+              setForm(f => ({ ...f, assets: updated, savings: String(Math.round(parseFloat(f.savings||0))) }));
+            };
+
+            const inputSt = { width:"100%", padding:"9px 12px", border:"1.5px solid #E2EAF2", borderRadius:8, fontFamily:"Nunito,sans-serif", fontSize:"0.875rem", color:"#0D1F3C", outline:"none", background:"white" };
+            const selSt = { ...inputSt, cursor:"pointer" };
+            const maxExp = Math.max(...expCats.map(c => parseFloat(expenseCategories[c.key])||0), 1);
+
+            return (
+              <>
+                {/* ── INCOME STREAMS ── */}
+                <div style={{ marginBottom:"1.25rem" }}>
+                  <div style={{ fontSize:"0.82rem", fontWeight:700, color:"#0D1F3C", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:10 }}>💰 Income sources</div>
+                  <div style={{ display:"grid", gridTemplateColumns:"2fr 1fr 1fr 1fr auto", gap:6, marginBottom:6 }}>
+                    <input style={inputSt} placeholder="Source (e.g. Salary, Side hustle, Rental)" value={newIncSrc} onChange={e => setNewIncSrc(e.target.value)} />
+                    <input style={inputSt} type="number" placeholder="Amount" value={newIncAmt} onChange={e => setNewIncAmt(e.target.value)} />
+                    <select style={selSt} value={newIncFreq} onChange={e => setNewIncFreq(e.target.value)}>
+                      <option value="weekly">Weekly</option>
+                      <option value="biweekly">Bi-weekly</option>
+                      <option value="monthly">Monthly</option>
+                      <option value="annual">Annual</option>
+                    </select>
+                    <select style={selSt} value={newIncCat} onChange={e => setNewIncCat(e.target.value)}>
+                      <option>Primary job</option><option>Side business</option><option>Freelance</option>
+                      <option>Rental income</option><option>Investment</option><option>Benefits / Support</option><option>Other</option>
+                    </select>
+                    <button className="btn btn-navy" style={{ padding:"0 14px", height:40, whiteSpace:"nowrap", fontSize:"0.82rem" }} onClick={addIncomeStream}>+ Add</button>
+                  </div>
+                  {incomeStreams.length === 0 && <div style={{ padding:"10px 12px", background:"#FAFAF6", borderRadius:8, fontSize:"0.82rem", color:"#7A8BA8" }}>Add each income source above — salary, side hustles, rental income, benefits, etc.</div>}
+                  {incomeStreams.map(r => (
+                    <div key={r.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 12px", background:"#EBF6F1", borderRadius:8, marginBottom:4, fontSize:"0.82rem" }}>
+                      <span style={{ flex:1, fontWeight:600, color:"#0D1F3C" }}>{r.src}</span>
+                      <span style={{ color:"#7A8BA8" }}>{r.freq === "monthly" ? "" : `$${parseFloat(r.amt).toLocaleString()} ${r.freq} →`}</span>
+                      <span style={{ fontWeight:700, color:"#1B4D3C" }}>${r.monthly.toLocaleString()}/mo</span>
+                      <span style={{ background:"#D2E8DC", color:"#1B4D3C", padding:"1px 7px", borderRadius:5, fontSize:"0.7rem", fontWeight:700 }}>{r.cat}</span>
+                      <button onClick={() => removeStream(r.id)} style={{ background:"none", border:"none", cursor:"pointer", color:"#7A8BA8", fontSize:14 }}>🗑</button>
+                    </div>
+                  ))}
+                  {totalMonthlyInc > 0 && <div style={{ textAlign:"right", fontSize:"0.85rem", fontWeight:700, color:"#1B4D3C", marginTop:4 }}>Total monthly income: ${Math.round(totalMonthlyInc).toLocaleString()}</div>}
+                </div>
+
+                <div style={{ height:1, background:"#E2EAF2", margin:"0 0 1.25rem" }} />
+
+                {/* ── EXPENSE CATEGORIES ── */}
+                <div style={{ marginBottom:"1.25rem" }}>
+                  <div style={{ fontSize:"0.82rem", fontWeight:700, color:"#0D1F3C", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:10 }}>💸 Monthly expenses by category</div>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+                    {expCats.map(c => (
+                      <div key={c.key}>
+                        <label style={{ display:"block", fontSize:"0.75rem", fontWeight:700, color:"#7A8BA8", marginBottom:3 }}>{c.label} <span style={{ fontWeight:400 }}>— {c.hint}</span></label>
+                        <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                          <div style={{ position:"relative", flex:1 }}>
+                            <span style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", color:"#7A8BA8", fontSize:"0.85rem", pointerEvents:"none" }}>$</span>
+                            <input style={{ ...inputSt, paddingLeft:22 }} type="number" placeholder="0" value={expenseCategories[c.key]} onChange={e => setExpCat(c.key, e.target.value)} />
+                          </div>
+                          <div style={{ width:6, height:36, borderRadius:3, background: parseFloat(expenseCategories[c.key]) > 0 ? c.color : "#E2EAF2", flexShrink:0 }} />
+                        </div>
+                        {parseFloat(expenseCategories[c.key]) > 0 && totalMonthlyInc > 0 && (
+                          <div style={{ height:4, background:"#E2EAF2", borderRadius:100, marginTop:3, overflow:"hidden" }}>
+                            <div style={{ height:"100%", background:c.color, borderRadius:100, width:`${Math.min(100,(parseFloat(expenseCategories[c.key])/totalMonthlyInc*100)).toFixed(0)}%` }} />
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  {totalMonthlyExp > 0 && <div style={{ textAlign:"right", fontSize:"0.85rem", fontWeight:700, color:"#B53232", marginTop:8 }}>Total monthly expenses: ${Math.round(totalMonthlyExp).toLocaleString()}</div>}
+                </div>
+
+                <div style={{ height:1, background:"#E2EAF2", margin:"0 0 1.25rem" }} />
+
+                {/* ── ASSETS / NET WORTH ── */}
+                <div style={{ marginBottom:"1.25rem" }}>
+                  <div style={{ fontSize:"0.82rem", fontWeight:700, color:"#0D1F3C", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:4 }}>🏦 Assets (for net worth calculation)</div>
+                  <div style={{ fontSize:"0.75rem", color:"#7A8BA8", marginBottom:10 }}>Approximate values are fine — this helps calculate your full financial picture</div>
+                  <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:8 }}>
+                    {[["checking","Checking / Savings"],["retirement","Retirement (401k/IRA)"],["car","Vehicle value"],["home","Home equity"],["other","Other assets"]].map(([key,label]) => (
+                      <div key={key}>
+                        <label style={{ display:"block", fontSize:"0.72rem", fontWeight:700, color:"#7A8BA8", marginBottom:3 }}>{label}</label>
+                        <div style={{ position:"relative" }}>
+                          <span style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", color:"#7A8BA8", fontSize:"0.85rem", pointerEvents:"none" }}>$</span>
+                          <input style={{ ...inputSt, paddingLeft:22 }} type="number" placeholder="0" value={assets[key]} onChange={e => setAsset(key, e.target.value)} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {totalAssets > 0 && <div style={{ textAlign:"right", fontSize:"0.85rem", fontWeight:700, color:"#8B6914", marginTop:8 }}>Total assets: ${Math.round(totalAssets).toLocaleString()}</div>}
+                </div>
+
+                <div style={{ height:1, background:"#E2EAF2", margin:"0 0 1.25rem" }} />
+
+                {/* ── CURRENT SAVINGS ── */}
+                <div className="form-group" style={{ marginBottom:"1.25rem" }}>
+                  <label className="form-label">💵 Current liquid savings <span>cash you could access today</span></label>
+                  <div className="curr"><input className="form-input" type="number" placeholder="0.00" value={form.savings} onChange={e => set("savings", e.target.value)} /></div>
+                </div>
+
+                {/* ── LIVE SNAPSHOT ── */}
+                {(totalMonthlyInc > 0 || totalMonthlyExp > 0) && (
+                  <div style={{ padding:"1rem 1.25rem", background:"linear-gradient(135deg,#0D1F3C,#162E56)", borderRadius:12, color:"white" }}>
+                    <div style={{ fontSize:"0.7rem", fontWeight:700, color:"rgba(255,255,255,0.45)", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:10 }}>📊 Live financial snapshot</div>
+                    <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:8, marginBottom:12 }}>
+                      {[["Income", totalMonthlyInc, "#86EFAC"], ["Expenses", totalMonthlyExp, "#FCA5A5"], ["Surplus", liveSurplus, liveSurplus >= 0 ? "#86EFAC" : "#FCA5A5"]].map(([l,v,c]) => (
+                        <div key={l}>
+                          <div style={{ fontSize:"0.65rem", color:"rgba(255,255,255,0.45)", textTransform:"uppercase", marginBottom:2 }}>{l}</div>
+                          <div style={{ fontFamily:"Lora,Georgia,serif", fontSize:"1.2rem", fontWeight:700, color:c }}>{v < 0 ? "-" : ""}${Math.abs(Math.round(v)).toLocaleString()}</div>
+                        </div>
+                      ))}
+                    </div>
+                    {totalMonthlyInc > 0 && (
+                      <div>
+                        <div style={{ fontSize:"0.65rem", color:"rgba(255,255,255,0.4)", marginBottom:6 }}>WHERE YOUR MONEY GOES</div>
+                        <div style={{ display:"flex", height:10, borderRadius:100, overflow:"hidden", gap:1 }}>
+                          {expCats.filter(c => parseFloat(expenseCategories[c.key]) > 0).map(c => (
+                            <div key={c.key} style={{ height:"100%", background:c.color, flex: parseFloat(expenseCategories[c.key]) }} title={c.label} />
+                          ))}
+                          {liveSurplus > 0 && <div style={{ height:"100%", background:"rgba(134,239,172,0.4)", flex: liveSurplus }} title="Surplus" />}
+                        </div>
+                        <div style={{ display:"flex", flexWrap:"wrap", gap:"6px 12px", marginTop:6 }}>
+                          {expCats.filter(c => parseFloat(expenseCategories[c.key]) > 0).map(c => (
+                            <span key={c.key} style={{ fontSize:"0.65rem", color:"rgba(255,255,255,0.55)", display:"flex", alignItems:"center", gap:4 }}>
+                              <span style={{ width:8, height:8, borderRadius:2, background:c.color, display:"inline-block" }} />{c.label}: {Math.round(parseFloat(expenseCategories[c.key])/totalMonthlyInc*100)}%
+                            </span>
+                          ))}
+                        </div>
+                        {totalAssets > 0 && (
+                          <div style={{ marginTop:10, paddingTop:8, borderTop:"1px solid rgba(255,255,255,0.1)", fontSize:"0.72rem", color:"rgba(255,255,255,0.55)" }}>
+                            Net worth estimate: <span style={{ fontWeight:700, color:"#E8C97A" }}>${Math.round(totalAssets).toLocaleString()} assets</span>
+                            {form.debts?.length > 0 && <span> — debts added in next step</span>}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            );
+          })()}
+
+          {step === 2 && (
             <>
-              <div className="form-row">
-                <div className="form-group"><label className="form-label">Monthly Take-Home Income</label><div className="curr"><input className="form-input" type="number" placeholder="0.00" value={form.income} onChange={e => set("income", e.target.value)} /></div></div>
-                <div className="form-group"><label className="form-label">Monthly Expenses</label><div className="curr"><input className="form-input" type="number" placeholder="0.00" value={form.expenses} onChange={e => set("expenses", e.target.value)} /></div></div>
+              <div style={{ marginBottom: "1rem" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr auto", gap: 8, marginBottom: 8 }}>
+                  <input className="form-input" placeholder="Debt name (e.g. Chase Visa, Car Loan, Student Loan)" value={debtEntry.name} onChange={e => setDebtEntry(d => ({ ...d, name: e.target.value }))} />
+                  <div className="curr"><input className="form-input" type="number" placeholder="Balance" value={debtEntry.bal} onChange={e => setDebtEntry(d => ({ ...d, bal: e.target.value }))} /></div>
+                  <input className="form-input" type="number" placeholder="Interest %" value={debtEntry.rate} onChange={e => setDebtEntry(d => ({ ...d, rate: e.target.value }))} />
+                  <div className="curr"><input className="form-input" type="number" placeholder="Min. payment" value={debtEntry.payment} onChange={e => setDebtEntry(d => ({ ...d, payment: e.target.value }))} /></div>
+                  <button className="btn btn-navy" style={{ padding: "0 14px", height: 42, whiteSpace: "nowrap" }} onClick={addDebt}>+ Add</button>
+                </div>
+                <div style={{ fontSize: "0.75rem", color: "#7A8BA8" }}>Include all debts: credit cards, car loans, student loans, medical bills, personal loans, etc.</div>
               </div>
-              <div className="form-row">
-                <div className="form-group"><label className="form-label">Total Debt Amount</label><div className="curr"><input className="form-input" type="number" placeholder="0.00" value={form.debt} onChange={e => set("debt", e.target.value)} /></div></div>
-                <div className="form-group"><label className="form-label">Current Savings</label><div className="curr"><input className="form-input" type="number" placeholder="0.00" value={form.savings} onChange={e => set("savings", e.target.value)} /></div></div>
-              </div>
-              {form.income && form.expenses && (
-                <div className={`surplus-banner ${surplus >= 0 ? "surplus-pos" : "surplus-neg"}`}>
-                  {surplus >= 0 ? "✓" : "⚠"} Monthly {surplus >= 0 ? "Surplus" : "Deficit"}: <strong>${Math.abs(surplus).toFixed(2)}</strong>
-                  {surplus >= 0 ? " — Great! This is your transformation fuel." : " — We'll fix this together. No judgment here."}
+              {form.debts.length === 0 && (
+                <div style={{ textAlign: "center", padding: "1.5rem", background: "#FAFAF6", borderRadius: 10, color: "#7A8BA8", fontSize: "0.85rem" }}>
+                  No debts added yet — add each debt above, or click Continue if you have no debt 🎉
+                </div>
+              )}
+              {form.debts.length > 0 && (
+                <div>
+                  <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "#7A8BA8", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>
+                    Your debts — sorted smallest to largest (snowball method)
+                  </div>
+                  {[...form.debts].sort((a, b) => parseFloat(a.bal) - parseFloat(b.bal)).map((d, i) => (
+                    <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "#FAFAF6", borderRadius: 8, marginBottom: 6, fontSize: "0.85rem" }}>
+                      <span style={{ background: "#0D1F3C", color: "white", borderRadius: "50%", width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.72rem", fontWeight: 700, flexShrink: 0 }}>{i + 1}</span>
+                      <span style={{ flex: 1, fontWeight: 600, color: "#0D1F3C" }}>{d.name}</span>
+                      <span style={{ color: "#B53232", fontWeight: 700 }}>${parseFloat(d.bal).toLocaleString()}</span>
+                      <span style={{ color: "#7A8BA8" }}>{d.rate ? `${d.rate}%` : '—'} APR</span>
+                      <span style={{ color: "#7A8BA8" }}>${d.payment || '—'}/mo</span>
+                      <button onClick={() => removeDebt(d.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#7A8BA8", fontSize: 16 }}>🗑</button>
+                    </div>
+                  ))}
+                  <div style={{ marginTop: 10, padding: "10px 12px", background: "#EBF0F8", borderRadius: 8, fontSize: "0.82rem", color: "#162E56" }}>
+                    💡 Total debt: <strong>${form.debts.reduce((s, d) => s + (parseFloat(d.bal) || 0), 0).toLocaleString()}</strong> across {form.debts.length} account{form.debts.length !== 1 ? "s" : ""}
+                  </div>
                 </div>
               )}
             </>
           )}
 
-          {step === 2 && (
-            <>
-              <div className="form-group">
-                <label className="form-label">Your Financial Goals</label>
-                <textarea className="form-textarea" placeholder="e.g., Pay off my credit cards, build a 3-month emergency fund, save for a home..." value={form.goals} onChange={e => set("goals", e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Your Biggest Financial Stress</label>
-                <textarea className="form-textarea" placeholder="What keeps you up at night financially?" value={form.stress} onChange={e => set("stress", e.target.value)} />
-              </div>
-            </>
-          )}
+          {step === 3 && (() => {
+            const inc = parseFloat(form.income || 0);
+            const totalDebt = form.debts.reduce((s,d) => s+(parseFloat(d.bal)||0), 0);
+            const sav = parseFloat(form.savings || 0);
+            const surplus = parseFloat(form.income||0) - parseFloat(form.expenses||0);
+            const GOAL_OPTIONS = [
+              { id: "payoff_debt", icon: "💳", label: "Pay off all my debt", desc: totalDebt > 0 ? `You have $${totalDebt.toLocaleString()} to eliminate` : "Add your debts in Step 3", connects: "Debt Payoff tab — builds your full snowball roadmap" },
+              { id: "emergency_fund", icon: "🛡️", label: "Build a 3-month emergency fund", desc: inc > 0 ? `Target: $${(inc*3).toLocaleString()}` : "Based on your income", connects: "Savings Goals tab — tracks your progress" },
+              { id: "save_home", icon: "🏠", label: "Save for a home", desc: "Creates a Home Down Payment savings goal", connects: "Savings Goals tab — adds a custom goal" },
+              { id: "give_more", icon: "❤️", label: "Give more generously", desc: inc > 0 ? `10% tithe = $${Math.round(inc*0.1).toLocaleString()}/mo` : "10% of your income", connects: "Budget tab — highlights giving category" },
+              { id: "generational", icon: "👑", label: "Build generational wealth", desc: "Invest & save beyond your lifetime", connects: "Savings Goals tab — adds Legacy Fund goal" },
+              { id: "reduce_stress", icon: "🕊️", label: "Reduce financial stress", desc: "Get a clear plan and accountability", connects: "AI Coach — prioritizes encouragement & clarity" },
+              { id: "increase_income", icon: "📈", label: "Increase my income", desc: "Side business, raise, or new opportunity", connects: "AI Coach — suggests income growth strategies" },
+              { id: "save_education", icon: "🎓", label: "Save for education", desc: "College fund or personal development", connects: "Savings Goals tab — adds Education Fund goal" },
+            ];
+            const selectedGoals = form.selectedGoals || [];
+            const toggleGoal = (id) => {
+              const updated = selectedGoals.includes(id) ? selectedGoals.filter(g => g !== id) : [...selectedGoals, id];
+              set("selectedGoals", updated);
+              set("goals", updated.map(g => GOAL_OPTIONS.find(o => o.id === g)?.label).join(", "));
+            };
+            return (
+              <>
+                <div style={{ fontSize: "0.82rem", color: "#7A8BA8", marginBottom: "1rem" }}>Select all that apply — your plan will be built around these goals.</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: "1.25rem" }}>
+                  {GOAL_OPTIONS.map(g => {
+                    const selected = selectedGoals.includes(g.id);
+                    return (
+                      <div key={g.id} onClick={() => toggleGoal(g.id)} style={{ padding: "12px 14px", borderRadius: 10, border: selected ? "2px solid #C9A84C" : "1.5px solid #E2EAF2", background: selected ? "#FDF7E8" : "white", cursor: "pointer", transition: "all 0.15s" }}>
+                        <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                          <div style={{ width: 22, height: 22, borderRadius: 6, border: selected ? "none" : "2px solid #E2EAF2", background: selected ? "#C9A84C" : "white", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1, fontSize: 12, color: "white", fontWeight: 700 }}>{selected ? "✓" : ""}</div>
+                          <div>
+                            <div style={{ fontSize: "0.88rem", fontWeight: 700, color: "#0D1F3C", marginBottom: 2 }}>{g.icon} {g.label}</div>
+                            <div style={{ fontSize: "0.75rem", color: "#7A8BA8" }}>{g.desc}</div>
+                            {selected && <div style={{ fontSize: "0.7rem", color: "#8B6914", marginTop: 4, fontWeight: 600 }}>→ {g.connects}</div>}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Biggest financial stress <span>optional — helps your AI coach</span></label>
+                  <textarea className="form-textarea" style={{ minHeight: 60 }} placeholder="What keeps you up at night financially?" value={form.stress} onChange={e => set("stress", e.target.value)} />
+                </div>
+                {selectedGoals.length > 0 && (
+                  <div style={{ padding: "10px 14px", background: "#EBF6F1", border: "1px solid #A8D4BC", borderRadius: 8, fontSize: "0.82rem", color: "#1B4D3C" }}>
+                    ✓ {selectedGoals.length} goal{selectedGoals.length !== 1 ? "s" : ""} selected — your plan will be tailored around these priorities
+                  </div>
+                )}
+              </>
+            );
+          })()}
 
-          {step === 3 && (
-            <>
-              {[["Name", form.name], ["Email", form.email], ["Monthly Income", `$${parseFloat(form.income || 0).toLocaleString()}`], ["Monthly Expenses", `$${parseFloat(form.expenses || 0).toLocaleString()}`], ["Total Debt", `$${parseFloat(form.debt || 0).toLocaleString()}`], ["Current Savings", `$${parseFloat(form.savings || 0).toLocaleString()}`], ["Timeline", form.timeline]].filter(([, v]) => v).map(([l, v]) => (
-                <div key={l} className="review-row"><span className="review-label">{l}</span><span className="review-val">{v}</span></div>
-              ))}
-              <div style={{ margin: "1.5rem 0", padding: "1.25rem", background: "#FDF7E8", border: "1px solid #E5D08A", borderRadius: 10 }}>
-                <div style={{ fontSize: "0.82rem", color: "#8B6914", fontWeight: 700, marginBottom: "0.3rem" }}>🕊️ Before We Begin</div>
-                <div style={{ fontFamily: "var(--serif)", fontSize: "0.88rem", fontStyle: "italic", color: "#7A5C10", lineHeight: 1.7 }}>"Trust in the Lord with all your heart and lean not on your own understanding." — Proverbs 3:5-6</div>
-              </div>
-            </>
-          )}
+          {step === 4 && (() => {
+            const inc = parseFloat(form.income || 0);
+            const exp = parseFloat(form.expenses || 0);
+            const sav = parseFloat(form.savings || 0);
+            const surp = inc - exp;
+            const totalDebt = form.debts.reduce((s,d) => s+(parseFloat(d.bal)||0), 0);
+            const goals = form.selectedGoals || [];
+            // Health Score
+            const savRate = inc > 0 ? (surp/inc)*100 : 0;
+            const debtToInc = inc > 0 ? (totalDebt/(inc*12))*100 : 100;
+            let score = 50;
+            if (savRate >= 20) score += 20; else if (savRate >= 10) score += 12; else if (savRate >= 0) score += 4; else score -= 10;
+            if (debtToInc <= 15) score += 15; else if (debtToInc <= 36) score += 8; else if (debtToInc <= 50) score += 2; else score -= 8;
+            if (sav >= inc*3) score += 10; else if (sav >= inc) score += 5; else if (sav > 0) score += 2;
+            if (goals.includes("give_more")) score += 5;
+            score = Math.min(100, Math.max(10, Math.round(score)));
+            const scoreValColor = score >= 75 ? "#86EFAC" : score >= 50 ? "#E8C97A" : "#FCA5A5";
+            const scoreLabel = score >= 75 ? "Strong" : score >= 55 ? "Building" : score >= 40 ? "Developing" : "Starting Out";
+            const scoreDesc = score >= 75 ? "Solid position — now optimize and grow." : score >= 55 ? "Good foundation with clear room to grow." : score >= 40 ? "Consistency will transform your situation quickly." : "Every journey starts somewhere. Your plan gives you a clear path.";
+            // Top Priorities — rich with dollar impact, 7-day action, cost of delay, goal connection
+            const sortedDebts = [...form.debts].sort((a,b) => parseFloat(a.bal)-parseFloat(b.bal));
+            const smallest = sortedDebts[0];
+            const highest = [...form.debts].sort((a,b) => parseFloat(b.rate||0)-parseFloat(a.rate||0))[0];
+            const extraPayment = Math.max(0, Math.round(surp * 0.5));
+            const totalMinPayments = form.debts.reduce((s,d) => s+(parseFloat(d.payment)||0), 0);
+            const totalMonthlyToDebt = totalMinPayments + extraPayment;
+
+            const allPriorities = [];
+
+            // Priority: Close deficit
+            if (surp < 0) {
+              const monthlyLoss = Math.abs(surp);
+              const yearlyLoss = monthlyLoss * 12;
+              allPriorities.push({
+                icon:"🚨", urgency: 100,
+                title:"Close your monthly deficit first",
+                dollar:`You're losing $${monthlyLoss.toLocaleString()}/mo — $${yearlyLoss.toLocaleString()}/year`,
+                action:`This week: list every expense and find $${Math.round(monthlyLoss*0.5).toLocaleString()} to cut or pause immediately`,
+                delay:`Every month you wait costs you $${monthlyLoss.toLocaleString()} and pushes debt-free further away`,
+                goalLink: goals.includes("payoff_debt") ? "Eliminating this deficit is step 1 before any debt payoff strategy can work" : "No financial goal is reachable while spending exceeds income",
+              });
+            }
+
+            // Priority: Emergency fund starter
+            if (sav < 1000) {
+              const needed = 1000 - sav;
+              const weeksToSave = surp > 0 ? Math.ceil(needed / (surp/4)) : null;
+              allPriorities.push({
+                icon:"🛡️", urgency: surp < 0 ? 60 : 85,
+                title:"Build a $1,000 starter emergency fund",
+                dollar:`You need $${needed.toLocaleString()} more — saves you from new debt when life happens`,
+                action:`This week: open a separate savings account and transfer $${Math.min(needed, Math.max(25, Math.round(surp*0.3))).toLocaleString()} today`,
+                delay:"Without this buffer, one car repair or medical bill adds $500-$1,500 to your debt",
+                goalLink: goals.includes("generational") ? "No wealth is built on a shaky foundation — stability first, growth second" : "This is the #1 thing that stops debt from growing",
+              });
+            }
+
+            // Priority: Smallest debt (snowball)
+            if (smallest && parseFloat(smallest.bal) > 0) {
+              const bal = parseFloat(smallest.bal);
+              const rate = parseFloat(smallest.rate || 0);
+              const monthlyInterest = Math.round(bal * (rate/100) / 12);
+              const extraThisMonth = Math.max(0, extraPayment);
+              const monthsToKill = extraThisMonth > 0 ? Math.ceil(bal / (parseFloat(smallest.payment||0) + extraThisMonth)) : null;
+              const interestSaved = monthlyInterest * (monthsToKill || 0);
+              allPriorities.push({
+                icon:"💳", urgency: 80,
+                title:`Eliminate ${smallest.name} first`,
+                dollar:`$${bal.toLocaleString()} balance${rate > 0 ? ` · costing you ~$${monthlyInterest}/mo in interest` : ""}${interestSaved > 0 ? ` · saves $${interestSaved.toLocaleString()} total` : ""}`,
+                action:`This week: add $${Math.max(50, extraThisMonth).toLocaleString()} extra to this account${monthsToKill ? ` — gone in ${monthsToKill} months` : ""}`,
+                delay:`${rate > 0 ? `Waiting 6 months costs you ~$${monthlyInterest*6} in extra interest` : "Every month delayed is motivation lost — momentum matters"}`,
+                goalLink: goals.includes("payoff_debt") ? "This is your snowball's starting point — pay it off and roll the payment to the next" : goals.includes("generational") ? "Debt-free is the launchpad for generational wealth" : "Eliminating accounts builds momentum that carries through every debt",
+              });
+            }
+
+            // Priority: Surplus to work
+            if (surp > 200 && totalDebt > 0) {
+              const debtFreeMonthsWithExtra = totalMonthlyToDebt > 0 ? Math.ceil(totalDebt/totalMonthlyToDebt) : null;
+              const debtFreeMonthsWithout = totalMinPayments > 0 ? Math.ceil(totalDebt/totalMinPayments) : null;
+              const monthsSaved = debtFreeMonthsWithout && debtFreeMonthsWithExtra ? debtFreeMonthsWithout - debtFreeMonthsWithExtra : null;
+              allPriorities.push({
+                icon:"⚡", urgency: 70,
+                title:`Put your $${surp.toLocaleString()}/mo surplus to work`,
+                dollar:`${monthsSaved ? `Allocating 50% ($${extraPayment.toLocaleString()}) to debt cuts your payoff by ${monthsSaved} months` : `$${extraPayment.toLocaleString()}/mo extra toward debt dramatically accelerates your freedom`}`,
+                action:`This week: set up an automatic extra payment of $${extraPayment.toLocaleString()} to your smallest debt on payday`,
+                delay:`Letting surplus sit idle for 6 months costs ${monthsSaved ? `${Math.round(monthsSaved/2)} months of your freedom` : "thousands in unnecessary interest"}`,
+                goalLink: goals.includes("generational") ? "Surplus invested after debt payoff becomes the seed of generational wealth" : "Idle money is silently working against you — direct it with intention",
+              });
+            }
+
+            // Priority: Giving
+            if (goals.includes("give_more") && inc > 0) {
+              const tenPct = Math.round(inc * 0.1);
+              const startAmt = Math.round(inc * 0.02);
+              allPriorities.push({
+                icon:"❤️", urgency: 55,
+                title:"Start a consistent giving habit",
+                dollar:`10% tithe = $${tenPct.toLocaleString()}/mo — start at $${startAmt.toLocaleString()}/mo and grow from there`,
+                action:`This week: set up a $${startAmt.toLocaleString()} recurring gift to your church or chosen cause`,
+                delay:"Generosity deferred becomes generosity forgotten — start small and let God multiply it",
+                goalLink: "Giving is the spiritual foundation that everything else is built on — it breaks the grip of scarcity",
+              });
+            }
+
+            // Priority: Income
+            if (goals.includes("increase_income") && inc > 0) {
+              const extraInc = Math.round(inc * 0.2);
+              allPriorities.push({
+                icon:"📈", urgency: 65,
+                title:"Open a new income stream",
+                dollar:`Even $${Math.round(extraInc/4).toLocaleString()}/week in side income = $${extraInc.toLocaleString()}/mo — game-changing for debt payoff`,
+                action:"This week: list your top 3 marketable skills and apply to one freelance gig, tutoring, or consulting opportunity",
+                delay:`Every month without extra income is a month longer to debt freedom and a month further from your goals`,
+                goalLink: goals.includes("generational") ? "Income growth is the accelerant — more income means faster debt payoff and faster wealth building" : "Your income is your most powerful financial tool — growing it changes everything",
+              });
+            }
+
+            // Sort by urgency and take top 3
+            const top3 = allPriorities.sort((a,b) => b.urgency - a.urgency).slice(0, 3);
+            const priorityColors = ["#B53232","#8B6914","#162E56"];
+            const debtFreeMonths = totalDebt > 0 && totalMonthlyToDebt > 0 ? Math.ceil(totalDebt / totalMonthlyToDebt) : null;
+            const debtFreeDate = debtFreeMonths ? (() => { const d = new Date(); d.setMonth(d.getMonth() + debtFreeMonths); return d.toLocaleDateString("en-US",{month:"long",year:"numeric"}); })() : null;
+            const efTarget = Math.round(inc * 3);
+            const efRemaining = Math.max(0, efTarget - sav);
+            const efMonthly = Math.max(50, Math.round(surp * 0.2));
+            const efMonths = efMonthly > 0 && efRemaining > 0 ? Math.ceil(efRemaining / efMonthly) : null;
+            const efDate = efMonths ? (() => { const d = new Date(); d.setMonth(d.getMonth() + efMonths); return d.toLocaleDateString("en-US",{month:"long",year:"numeric"}); })() : null;
+            // Encouragement
+            const encouragement = surp < 0
+              ? `${form.name||"Friend"}, courage isn't the absence of struggle — it's showing up anyway. You're here, and that changes everything.`
+              : totalDebt > 0 && goals.includes("payoff_debt")
+              ? `${form.name||"Friend"}, your debt does not define you. With a clear plan and God's guidance, what took years to build can be dismantled one faithful step at a time.`
+              : `${form.name||"Friend"}, the fact that you're here today is already an act of courage and faith. God honors diligent stewardship — your journey starts right now.`;
+            return (
+              <>
+                {/* Health Score */}
+                <div style={{ display:"flex", alignItems:"center", gap:"1.25rem", padding:"1.25rem", background:"linear-gradient(135deg,#0D1F3C,#162E56)", borderRadius:12, marginBottom:"1rem", color:"white" }}>
+                  <div style={{ textAlign:"center", flexShrink:0, minWidth:70 }}>
+                    <div style={{ fontFamily:"Lora,Georgia,serif", fontSize:"2.8rem", fontWeight:700, color:scoreValColor, lineHeight:1 }}>{score}</div>
+                    <div style={{ fontSize:"0.65rem", color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:"0.08em" }}>/ 100</div>
+                    <div style={{ fontSize:"0.72rem", fontWeight:700, color:"#E8C97A", marginTop:3 }}>{scoreLabel}</div>
+                  </div>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontSize:"0.7rem", fontWeight:700, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>Financial health score</div>
+                    <div style={{ width:"100%", height:7, background:"rgba(255,255,255,0.1)", borderRadius:100, overflow:"hidden", marginBottom:8 }}>
+                      <div style={{ height:"100%", width:`${score}%`, background:"linear-gradient(90deg,#C9A84C,#E8C97A)", borderRadius:100 }} />
+                    </div>
+                    <div style={{ fontSize:"0.82rem", color:"rgba(255,255,255,0.68)", lineHeight:1.5 }}>{scoreDesc}</div>
+                  </div>
+                </div>
+                {/* Top Priorities */}
+                {top3.length > 0 && (
+                  <div className="card card-p" style={{ marginBottom:"1rem" }}>
+                    <div style={{ fontFamily:"Lora,Georgia,serif", fontSize:"0.95rem", fontWeight:700, color:"#0D1F3C", marginBottom:12 }}>⚡ Your top {top3.length} priorities — ranked by financial impact</div>
+                    {top3.map((p,i) => (
+                      <div key={i} style={{ padding:"12px", borderRadius:10, border:`1.5px solid ${priorityColors[i]}22`, background: i===0?"#FFF8F8": i===1?"#FDFAF0":"#F5F7FF", marginBottom: i<top3.length-1?"10px":"0" }}>
+                        <div style={{ display:"flex", alignItems:"flex-start", gap:10, marginBottom:8 }}>
+                          <div style={{ width:24, height:24, borderRadius:"50%", background:priorityColors[i], color:"white", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"0.72rem", fontWeight:700, flexShrink:0, marginTop:1 }}>{i+1}</div>
+                          <div style={{ flex:1 }}>
+                            <div style={{ fontSize:"0.88rem", fontWeight:700, color:"#0D1F3C", marginBottom:3 }}>{p.icon} {p.title}</div>
+                            <div style={{ fontSize:"0.78rem", fontWeight:700, color:priorityColors[i], marginBottom:6 }}>💰 {p.dollar}</div>
+                          </div>
+                        </div>
+                        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, paddingLeft:34 }}>
+                          <div style={{ padding:"8px 10px", background:"white", borderRadius:8, border:"1px solid #E2EAF2" }}>
+                            <div style={{ fontSize:"0.65rem", fontWeight:700, color:"#1B4D3C", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:3 }}>✅ 7-day action</div>
+                            <div style={{ fontSize:"0.76rem", color:"#3E506B", lineHeight:1.5 }}>{p.action}</div>
+                          </div>
+                          <div style={{ padding:"8px 10px", background:"white", borderRadius:8, border:"1px solid #E2EAF2" }}>
+                            <div style={{ fontSize:"0.65rem", fontWeight:700, color:"#B53232", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:3 }}>⏰ Cost of delay</div>
+                            <div style={{ fontSize:"0.76rem", color:"#3E506B", lineHeight:1.5 }}>{p.delay}</div>
+                          </div>
+                        </div>
+                        <div style={{ marginTop:8, paddingLeft:34, fontSize:"0.72rem", color:"#7A8BA8", lineHeight:1.4 }}>
+                          <span style={{ fontWeight:700, color:"#8B6914" }}>→ Goal connection: </span>{p.goalLink}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {/* Projections */}
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0.75rem", marginBottom:"1rem" }}>
+                  <div className="card card-p">
+                    <div style={{ fontSize:"0.68rem", fontWeight:700, color:"#7A8BA8", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:6 }}>🎯 Debt-free target</div>
+                    {debtFreeDate ? <>
+                      <div style={{ fontFamily:"Lora,Georgia,serif", fontSize:"1.2rem", fontWeight:700, color:"#1B4D3C" }}>{debtFreeDate}</div>
+                      <div style={{ fontSize:"0.72rem", color:"#7A8BA8", marginTop:4 }}>{debtFreeMonths} months · ${totalMonthlyToDebt.toLocaleString()}/mo to debt</div>
+                    </> : <div style={{ fontSize:"0.82rem", color:"#7A8BA8" }}>Add debts in Step 3 to see projection</div>}
+                  </div>
+                  <div className="card card-p">
+                    <div style={{ fontSize:"0.68rem", fontWeight:700, color:"#7A8BA8", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:6 }}>🛡️ Emergency fund by</div>
+                    {efDate && inc > 0 ? <>
+                      <div style={{ fontFamily:"Lora,Georgia,serif", fontSize:"1.2rem", fontWeight:700, color:"#8B6914" }}>{efDate}</div>
+                      <div style={{ fontSize:"0.72rem", color:"#7A8BA8", marginTop:4 }}>{efMonths} months · ${efMonthly.toLocaleString()}/mo · Goal: ${efTarget.toLocaleString()}</div>
+                    </> : <div style={{ fontSize:"0.82rem", color:"#7A8BA8" }}>Add income to see projection</div>}
+                  </div>
+                </div>
+                {/* Summary */}
+                <div className="card card-p" style={{ marginBottom:"1rem" }}>
+                  <div style={{ fontFamily:"Lora,Georgia,serif", fontSize:"0.92rem", fontWeight:700, color:"#0D1F3C", marginBottom:8 }}>📋 Your summary</div>
+                  {[["Monthly income", inc>0?`$${inc.toLocaleString()}`:""], ["Monthly expenses", exp>0?`$${exp.toLocaleString()}`:""], ["Monthly surplus", surp>=0?`+$${surp.toLocaleString()}`:`-$${Math.abs(surp).toLocaleString()}`], ["Total debt", totalDebt>0?`$${totalDebt.toLocaleString()} · ${form.debts.length} accounts`:"None 🎉"], ["Current savings", `$${sav.toLocaleString()}`], ["Timeline", form.timeline], ["Goals", `${goals.length} selected`]].filter(([,v])=>v).map(([l,v])=>(
+                    <div key={l} className="review-row"><span className="review-label">{l}</span><span className="review-val">{v}</span></div>
+                  ))}
+                </div>
+                {/* Encouragement */}
+                <div style={{ padding:"1.1rem", background:"#FDF7E8", border:"1px solid #E5D08A", borderRadius:10 }}>
+                  <div style={{ fontSize:"0.72rem", fontWeight:700, color:"#8B6914", marginBottom:5 }}>🕊️ A word for your journey</div>
+                  <div style={{ fontFamily:"Lora,Georgia,serif", fontSize:"0.88rem", fontStyle:"italic", color:"#7A5C10", lineHeight:1.72 }}>{encouragement}</div>
+                  <div style={{ fontSize:"0.72rem", color:"#C9A84C", fontWeight:700, marginTop:7 }}>"Commit to the Lord whatever you do, and he will establish your plans." — Proverbs 16:3</div>
+                </div>
+              </>
+            );
+          })()}
 
           <div className="intake-nav">
             {step > 0 ? <button className="btn btn-outline" onClick={() => setStep(s => s - 1)}>← Back</button> : <div />}
-            {step < 3 ? (
+            {step < 4 ? (
               <button className="btn btn-navy" onClick={() => setStep(s => s + 1)}>Continue →</button>
             ) : (
               <button className="btn btn-gold btn-lg" onClick={submit}>✨ Build My Kingdom Plan</button>
@@ -746,10 +1396,11 @@ function Dashboard({ plan, user, dashTab, setDashTab, checked, setChecked, check
 
         <div className="stats-row">
           {[
-            { icon: "💰", label: "Monthly Income", val: `$${plan.income.toLocaleString()}`, note: "Take-home pay", cls: "" },
+            { icon: "💰", label: "Monthly Income", val: `$${plan.income.toLocaleString()}`, note: plan.incomeStreams?.length > 1 ? `${plan.incomeStreams.length} income sources` : "Take-home pay", cls: "" },
             { icon: "💳", label: "Total Debt", val: `$${plan.debt.toLocaleString()}`, note: `${plan.debts.length} accounts`, cls: "neg" },
             { icon: "📈", label: "Total Savings", val: `$${plan.savings.toLocaleString()}`, note: "Across all goals", cls: "pos" },
             { icon: "✨", label: "Monthly Surplus", val: `$${Math.max(0, plan.surplus).toLocaleString()}`, note: "Available to allocate", cls: plan.surplus >= 0 ? "pos" : "neg" },
+            ...(plan.totalAssets > 0 ? [{ icon: "🏦", label: "Net Worth", val: `$${(plan.totalAssets - plan.debt).toLocaleString()}`, note: `$${plan.totalAssets.toLocaleString()} assets`, cls: (plan.totalAssets - plan.debt) >= 0 ? "pos" : "neg" }] : []),
           ].map(s => (
             <div key={s.label} className="card stat-card">
               <div className="stat-icon-wrap">{s.icon}</div>
@@ -969,7 +1620,7 @@ function AICoach({ user, plan }) {
     setLoading(true);
     try {
       const apiMsgs = [{ role: "user", content: `[Context: ${context}]\n\n${content}` }, ...newMsgs.slice(1).map(m => ({ role: m.role, content: m.content }))];
-      const reply = await askCoach(apiMsgs);
+      const reply = await askCoach(apiMsgs, plan?.user);
       setMsgs(prev => [...prev, { role: "assistant", content: reply, time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) }]);
     } catch {
       setMsgs(prev => [...prev, { role: "assistant", content: "I'm sorry — I couldn't reach the server right now. Please try again in a moment. 🙏", time }]);
