@@ -498,7 +498,7 @@ export default function App() {
 
   const login = u => { setUser(u); setAuthModal(null); };
   const logout = () => { setUser(null); setPage("landing"); setPlan(null); };
-  const startJourney = () => user ? setPage("intake") : setAuthModal("signup");
+  const startJourney = () => setPage("intake");
 
   const navTabs = [
     { id: "landing", label: "Home" },
@@ -536,9 +536,12 @@ export default function App() {
 
       {authModal && <AuthModal mode={authModal} onClose={() => setAuthModal(null)} onAuth={login} switchMode={m => setAuthModal(m)} />}
       {page === "landing" && <LandingPage onStart={startJourney} />}
-      {page === "intake" && <IntakePage user={user} onComplete={(p) => { setPlan(p); setPage("dashboard"); setDashTab("overview"); }} />}
-      {page === "dashboard" && plan && (
-        <Dashboard plan={plan} user={user} dashTab={dashTab} setDashTab={setDashTab} checked={checked} setChecked={setChecked} checkinChecked={checkinChecked} setCheckinChecked={setCheckinChecked} onLogout={logout} onRedo={() => setPage("intake")} />
+      {page === "intake" && <IntakePage user={user} onComplete={(p) => {
+        try { setPlan(p); setPage("dashboard"); setDashTab("overview"); }
+        catch(e) { console.error("Plan error:", e); setPlan(p); setPage("dashboard"); setDashTab("overview"); }
+      }} />}
+      {page === "dashboard" && (
+        <Dashboard plan={plan || {income:0,expenses:0,debt:0,savings:0,surplus:0,totalAssets:0,incomeStreams:[],budget:[],debts:[],savingsGoals:[{name:"Emergency Fund",target:3000,current:0,icon:"🛡️"}],actions:[{text:"Review your spending this week",tag:"budget"}],scripture:{text:"Commit to the Lord whatever you do.",ref:"Proverbs 16:3"},encouragement:"Welcome! Complete your financial intake to get your personalized plan.",devotional:{day:"This Week",title:"Getting Started",body:"Every financial journey begins with a single step.",verse:'"The plans of the diligent lead to profit." — Proverbs 21:5'},lesson:{title:"The Debt Snowball Method",body:"Pay minimums on all debts. Attack the smallest first.",tip:"💡 Small wins build momentum."},user:{name:user?.name||"Friend",email:""}, incomeStreams:[]}} user={user} dashTab={dashTab} setDashTab={setDashTab} checked={checked} setChecked={setChecked} checkinChecked={checkinChecked} setCheckinChecked={setCheckinChecked} onLogout={logout} onRedo={() => setPage("intake")} />
       )}
     </>
   );
