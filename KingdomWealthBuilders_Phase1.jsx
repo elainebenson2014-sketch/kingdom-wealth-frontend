@@ -558,8 +558,11 @@ export default function App() {
       {page === "landing" && <LandingPage onStart={startJourney} />}
       {page === "intake" && (
         <ErrorBoundary onError={setAppError}>
-          <IntakePage user={user} onComplete={(p) => {
-            try { setPlan(p); setPage("dashboard"); setDashTab("overview"); }
+          <IntakePage user={user} onComplete={(p, savedUser) => {
+            try {
+              if (savedUser && savedUser.email) setUser(savedUser);
+              setPlan(p); setPage("dashboard"); setDashTab("overview");
+            }
             catch(e) { setAppError(String(e)); }
           }} />
         </ErrorBoundary>
@@ -771,11 +774,61 @@ function IntakePage({ user, onComplete }) {
 
   const toggleGoal = (id) => setSelectedGoals(p => p.includes(id) ? p.filter(g => g !== id) : [...p, id]);
 
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [saveEmail, setSaveEmail] = useState("");
+  const [savePassword, setSavePassword] = useState("");
+  const [saveName, setSaveName] = useState("");
+
   const submit = () => {
-    setLoading(true);
-    const form = { name, email, phone, household, dependents, timeline, moneyPersonality, faithLevel, incomeStreams, income: String(totalInc), expenseCategories: expCatVals, expenses: String(totalExp), assets, savings, debts, selectedGoals, stress, goals: selectedGoals.join(", ") };
-    setTimeout(() => { onComplete(buildPlan(form)); }, 1800);
+    // Show save modal before building plan
+    setSaveName(name || "");
+    setSaveEmail(email || "");
+    setShowSaveModal(true);
   };
+
+  const buildAndComplete = (savedUser) => {
+    setShowSaveModal(false);
+    setLoading(true);
+    const form = { name: savedUser?.name || name, email: savedUser?.email || email, phone, household, dependents, timeline, moneyPersonality, faithLevel, incomeStreams, income: String(totalInc), expenseCategories: expCatVals, expenses: String(totalExp), assets, savings, debts, selectedGoals, stress, goals: selectedGoals.join(", ") };
+    setTimeout(() => { onComplete(buildPlan(form), savedUser); }, 1800);
+  };
+
+  if (showSaveModal) return (
+    <div style={{ minHeight:"100vh", paddingTop:66, background:"linear-gradient(180deg,#FAFAF6 0%,white 100%)", display:"flex", alignItems:"center", justifyContent:"center", padding:"100px 1.5rem 4rem" }}>
+      <div style={{ maxWidth:440, width:"100%", background:"white", borderRadius:18, padding:"2.25rem", boxShadow:"0 20px 60px rgba(13,31,60,0.12)", border:"1px solid #E2EAF2" }}>
+        <div style={{ textAlign:"center", marginBottom:"1.5rem" }}>
+          <div style={{ fontSize:"2.5rem", marginBottom:"0.5rem" }}>👑</div>
+          <h2 style={{ fontFamily:"Lora,Georgia,serif", fontSize:"1.6rem", fontWeight:700, color:"#0D1F3C", marginBottom:"0.3rem" }}>Save Your Plan</h2>
+          <p style={{ fontSize:"0.85rem", color:"#7A8BA8", lineHeight:1.6 }}>Create a free account to save your Kingdom Wealth plan and access it anytime.</p>
+        </div>
+        <div style={{ marginBottom:"1rem" }}>
+          <label style={{ display:"block", fontSize:"0.78rem", fontWeight:700, color:"#0D1F3C", marginBottom:"0.3rem" }}>Full Name</label>
+          <input style={{ width:"100%", padding:"10px 14px", border:"1.5px solid #E2EAF2", borderRadius:8, fontFamily:"Nunito,sans-serif", fontSize:"0.9rem", color:"#0D1F3C", outline:"none" }} placeholder="Your full name" value={saveName} onChange={e=>setSaveName(e.target.value)} />
+        </div>
+        <div style={{ marginBottom:"1rem" }}>
+          <label style={{ display:"block", fontSize:"0.78rem", fontWeight:700, color:"#0D1F3C", marginBottom:"0.3rem" }}>Email Address</label>
+          <input style={{ width:"100%", padding:"10px 14px", border:"1.5px solid #E2EAF2", borderRadius:8, fontFamily:"Nunito,sans-serif", fontSize:"0.9rem", color:"#0D1F3C", outline:"none" }} type="email" placeholder="you@email.com" value={saveEmail} onChange={e=>setSaveEmail(e.target.value)} />
+        </div>
+        <div style={{ marginBottom:"1.5rem" }}>
+          <label style={{ display:"block", fontSize:"0.78rem", fontWeight:700, color:"#0D1F3C", marginBottom:"0.3rem" }}>Create Password</label>
+          <input style={{ width:"100%", padding:"10px 14px", border:"1.5px solid #E2EAF2", borderRadius:8, fontFamily:"Nunito,sans-serif", fontSize:"0.9rem", color:"#0D1F3C", outline:"none" }} type="password" placeholder="Choose a password" value={savePassword} onChange={e=>setSavePassword(e.target.value)} />
+        </div>
+        <button
+          onClick={() => buildAndComplete({ name: saveName || name || "Friend", email: saveEmail || email })}
+          style={{ width:"100%", padding:"13px", background:"linear-gradient(135deg,#C9A84C,#E8C97A)", color:"#0D1F3C", border:"none", borderRadius:9, fontFamily:"Nunito,sans-serif", fontSize:"0.95rem", fontWeight:700, cursor:"pointer", marginBottom:"0.75rem" }}>
+          ✨ Save & View My Plan →
+        </button>
+        <button
+          onClick={() => buildAndComplete({ name: name || "Friend", email: email })}
+          style={{ width:"100%", padding:"11px", background:"none", color:"#7A8BA8", border:"1.5px solid #E2EAF2", borderRadius:9, fontFamily:"Nunito,sans-serif", fontSize:"0.85rem", fontWeight:600, cursor:"pointer" }}>
+          Skip for now — view without saving
+        </button>
+        <p style={{ textAlign:"center", fontSize:"0.75rem", color:"#7A8BA8", marginTop:"1rem", lineHeight:1.6 }}>
+          🔒 Your information is private and never shared. Free forever.
+        </p>
+      </div>
+    </div>
+  );
 
   if (loading) return (
     <div className="loading-page">
