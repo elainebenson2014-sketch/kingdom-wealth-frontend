@@ -629,6 +629,57 @@ function LandingPage({ onStart }) {
               </div>
               <div className="float-chip fc2">
                 <div className="fc-icon" style={{ background: "rgba(201,168,76,0.1)" }}>💰</div>
+                <div><div className="fc-label">Monthly Savings</div><div className="fc-val">$380/mo</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="mission">
+        <div className="mission-inner">
+          <div className="mission-verse">"The plans of the diligent lead to profit as surely as haste leads to poverty."</div>
+          <div className="mission-ref">Proverbs 21:5 (NIV)</div>
+          <div className="mission-line" />
+          <p className="mission-body">Kingdom Wealth Builders exists because financial freedom is not just a worldly goal — it's a spiritual calling. When we steward our resources wisely, we honor God, provide for our families, and become a blessing to our communities.</p>
+        </div>
+      </section>
+
+      <section className="sec" style={{ background: "white" }} id="features">
+        <div className="sec-inner">
+          <div className="sec-head">
+            <div className="sec-eye">Phase 1 Features</div>
+            <h2 className="sec-h2">Six tools for complete<br /><em>financial wholeness.</em></h2>
+            <p className="sec-sub">Everything you need — clean, focused, and powerful enough to deliver real transformation from day one.</p>
+          </div>
+          <div className="features-grid">
+            {features.map(f => (
+              <div key={f.title} className="card feat-card card-hover">
+                <div className="feat-icon">{f.icon}</div>
+                <h3 className="feat-title">{f.title}</h3>
+                <p className="feat-desc">{f.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section style={{ background: "linear-gradient(135deg,#0D1F3C,#1B4D3C)", padding: "5rem 2rem", textAlign: "center", position: "relative", overflow: "hidden" }}>
+        <div style={{ maxWidth: 600, margin: "0 auto", position: "relative" }}>
+          <div style={{ fontSize: "2.2rem", marginBottom: "1rem" }}>👑</div>
+          <h2 style={{ fontFamily: "var(--serif)", fontSize: "2.6rem", fontWeight: 700, color: "white", marginBottom: "1rem", lineHeight: 1.2 }}>Your Kingdom financial<br />journey starts today.</h2>
+          <p style={{ fontSize: "1rem", color: "rgba(255,255,255,0.68)", marginBottom: "2.5rem", lineHeight: 1.85 }}>Complete your financial intake in 5 minutes and receive a personalized budget, debt strategy, savings goals, and faith-centered coaching.</p>
+          <button className="btn btn-gold btn-lg" onClick={onStart}>Create My Free Financial Plan →</button>
+        </div>
+      </section>
+
+      <footer className="footer">
+        <div className="footer-brand">Kingdom Wealth Builders</div>
+        <div className="footer-copy">© 2026 · Phase 1 MVP · Stewardship rooted in faith</div>
+      </footer>
+    </>
+  );
+}
 
 function IntakePage({ user, onComplete }) {
   const [step, setStep] = useState(0);
@@ -1761,3 +1812,5 @@ function BudgetTracker() {
     </div>
   );
 }
+
+// end
