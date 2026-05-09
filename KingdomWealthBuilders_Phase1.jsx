@@ -1,7 +1,7 @@
-import { useState, useRef, useEffect } from "react";
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
-const C = {
+const import { useState, useRef, useEffect } from "react";
+C = {
   navy: "#0D1F3C",
   navyMid: "#162E56",
   navyLight: "#1E3D70",
@@ -682,10 +682,23 @@ function LandingPage({ onStart }) {
 function IntakePage({ user, onComplete }) {
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({ name: user?.name || "", email: user?.email || "", income: "", expenses: "", savings: "", goals: "", stress: "", timeline: "1-2 years", debts: [] });
+  const [form, setForm] = useState({ name: user?.name || "", email: user?.email || "", income: "", expenses: "", savings: "", goals: "", stress: "", timeline: "1-2 years", debts: [], incomeStreams: [], expenseCategories: { housing:"", food:"", transport:"", healthcare:"", personal:"", other:"" }, assets: { checking:"", car:"", home:"", retirement:"", other:"" } });
   const [debtEntry, setDebtEntry] = useState({ name: "", bal: "", rate: "", payment: "" });
+  const [newIncSrc, setNewIncSrc] = useState("");
+  const [newIncAmt, setNewIncAmt] = useState("");
+  const [newIncFreq, setNewIncFreq] = useState("monthly");
+  const [newIncCat, setNewIncCat] = useState("Primary job");
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const steps = ["Personal Info", "Your Finances", "Your Debts", "Goals & Vision", "Review"];
+
+  const toMonthly = (amt, freq) => {
+    const n = parseFloat(amt) || 0;
+    if (freq === "weekly") return n * 4.33;
+    if (freq === "biweekly") return n * 2.167;
+    if (freq === "annual") return n / 12;
+    return n;
+  };
+
   const surplus = parseFloat(form.income || 0) - parseFloat(form.expenses || 0);
 
   const addDebt = () => {
@@ -838,21 +851,8 @@ function IntakePage({ user, onComplete }) {
 
           {step === 1 && (() => {
             const incomeStreams = form.incomeStreams || [];
-            const expenseCategories = form.expenseCategories || { housing: "", food: "", transport: "", utilities: "", healthcare: "", personal: "", other: "" };
-            const payFreq = form.payFreq || "monthly";
+            const expenseCategories = form.expenseCategories || { housing: "", food: "", transport: "", healthcare: "", personal: "", other: "" };
             const assets = form.assets || { checking: "", car: "", home: "", retirement: "", other: "" };
-            const [newIncSrc, setNewIncSrc] = useState("");
-            const [newIncAmt, setNewIncAmt] = useState("");
-            const [newIncFreq, setNewIncFreq] = useState("monthly");
-            const [newIncCat, setNewIncCat] = useState("Primary job");
-
-            const toMonthly = (amt, freq) => {
-              const n = parseFloat(amt) || 0;
-              if (freq === "weekly") return n * 4.33;
-              if (freq === "biweekly") return n * 2.167;
-              if (freq === "annual") return n / 12;
-              return n;
-            };
 
             const totalMonthlyInc = incomeStreams.reduce((s, r) => s + toMonthly(r.amt, r.freq), 0);
             const expCats = [
@@ -870,7 +870,9 @@ function IntakePage({ user, onComplete }) {
             const addIncomeStream = () => {
               if (!newIncSrc || !newIncAmt) return;
               const monthly = toMonthly(newIncAmt, newIncFreq);
-              setForm(f => ({ ...f, incomeStreams: [...(f.incomeStreams||[]), { id: Date.now(), src: newIncSrc, amt: newIncAmt, freq: newIncFreq, cat: newIncCat, monthly: Math.round(monthly) }], income: String(Math.round(totalMonthlyInc + monthly)) }));
+              const updatedStreams = [...(form.incomeStreams||[]), { id: Date.now(), src: newIncSrc, amt: newIncAmt, freq: newIncFreq, cat: newIncCat, monthly: Math.round(monthly) }];
+              const newTotal = updatedStreams.reduce((s,r) => s + toMonthly(r.amt, r.freq), 0);
+              setForm(f => ({ ...f, incomeStreams: updatedStreams, income: String(Math.round(newTotal)) }));
               setNewIncSrc(""); setNewIncAmt("");
             };
 
@@ -883,15 +885,13 @@ function IntakePage({ user, onComplete }) {
             };
 
             const setExpCat = (key, val) => {
-              const updated = { ...expenseCategories, [key]: val };
+              const updated = { ...form.expenseCategories, [key]: val };
               const total = expCats.reduce((s,c) => s + (parseFloat(updated[c.key])||0), 0);
               setForm(f => ({ ...f, expenseCategories: updated, expenses: String(Math.round(total)) }));
             };
 
             const setAsset = (key, val) => {
-              const updated = { ...assets, [key]: val };
-              const total = Object.values(updated).reduce((s,v) => s+(parseFloat(v)||0), 0);
-              setForm(f => ({ ...f, assets: updated, savings: String(Math.round(parseFloat(f.savings||0))) }));
+              setForm(f => ({ ...f, assets: { ...(f.assets||{}), [key]: val } }));
             };
 
             const inputSt = { width:"100%", padding:"9px 12px", border:"1.5px solid #E2EAF2", borderRadius:8, fontFamily:"Nunito,sans-serif", fontSize:"0.875rem", color:"#0D1F3C", outline:"none", background:"white" };
