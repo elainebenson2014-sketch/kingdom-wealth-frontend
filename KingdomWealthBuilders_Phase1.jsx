@@ -3,14 +3,13 @@ import React from "react";
 
 // ─── SUPABASE CLIENT (loaded dynamically) ────────────────────────────────────
 let supabase = null;
+const SUPABASE_URL = "https://lmugkdwjijhmjhlqnmyk.supabase.co";
+const SUPABASE_KEY = "sb_publishable_KhuctB50jawJ65sBLrUb4g_VgTThnip";
 const getSupabase = async () => {
   if (supabase) return supabase;
   try {
     const { createClient } = await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm");
-    const url = import.meta.env.VITE_SUPABASE_URL || "";
-    const key = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
-    if (!url || !key) throw new Error("Missing Supabase config");
-    supabase = createClient(url, key);
+    supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
     return supabase;
   } catch(e) {
     console.error("Supabase load failed:", e);
