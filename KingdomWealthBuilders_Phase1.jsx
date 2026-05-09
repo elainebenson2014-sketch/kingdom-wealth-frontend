@@ -1,5 +1,12 @@
 import { useState, useRef, useEffect } from "react";
 import React from "react";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+// ─── SUPABASE CLIENT ──────────────────────────────────────────────────────────
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY
+);
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
 const C = {
@@ -579,10 +586,24 @@ export default function App() {
 function AuthModal({ mode, onClose, onAuth, switchMode }) {
   const [f, setF] = useState({ name: "", email: "", password: "" });
   const [err, setErr] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const isLogin = mode === "login";
-  const submit = () => {
+  const submit = async () => {
     if (!f.email || !f.password || (!isLogin && !f.name)) { setErr("Please fill in all fields."); return; }
-    onAuth({ name: f.name || f.email.split("@")[0], email: f.email });
+    setSubmitting(true); setErr("");
+    try {
+      if (isLogin) {
+        const { data, error } = await supabase.auth.signInWithPassword({ email: f.email, password: f.password });
+        if (error) { setErr(error.message); setSubmitting(false); return; }
+        const name = data.user?.user_metadata?.name || f.email.split("@")[0];
+        onAuth({ name, email: f.email });
+      } else {
+        const { data, error } = await supabase.auth.signUp({ email: f.email, password: f.password, options: { data: { name: f.name } } });
+        if (error) { setErr(error.message); setSubmitting(false); return; }
+        if (data.user) await supabase.from("profiles").upsert({ id: data.user.id, name: f.name });
+        onAuth({ name: f.name, email: f.email });
+      }
+    } catch(e) { setErr("Something went wrong. Please try again."); setSubmitting(false); }
   };
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -597,7 +618,7 @@ function AuthModal({ mode, onClose, onAuth, switchMode }) {
         {!isLogin && <div className="form-group"><label className="form-label">Full Name</label><input className="form-input" placeholder="Your full name" value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></div>}
         <div className="form-group"><label className="form-label">Email</label><input className="form-input" type="email" placeholder="you@email.com" value={f.email} onChange={e => setF({ ...f, email: e.target.value })} /></div>
         <div className="form-group"><label className="form-label">Password</label><input className="form-input" type="password" placeholder="••••••••" value={f.password} onChange={e => setF({ ...f, password: e.target.value })} /></div>
-        <button className="btn btn-navy btn-block" style={{ marginTop: "0.5rem" }} onClick={submit}>{isLogin ? "Sign In" : "Create Free Account"}</button>
+        <button className="btn btn-navy btn-block" style={{ marginTop: "0.5rem" }} onClick={submit} disabled={submitting}>{submitting ? "Please wait…" : isLogin ? "Sign In" : "Create Free Account"}</button>
         <div className="modal-switch">
           {isLogin ? <>No account? <button onClick={() => switchMode("signup")}>Sign up free →</button></> : <>Have an account? <button onClick={() => switchMode("login")}>Sign in</button></>}
         </div>
@@ -786,11 +807,33 @@ function IntakePage({ user, onComplete }) {
     setShowSaveModal(true);
   };
 
-  const buildAndComplete = (savedUser) => {
+  const [saveError, setSaveError] = useState("");
+  const [saveLoading, setSaveLoading] = useState(false);
+
+  const buildAndComplete = async (savedUser) => {
     setShowSaveModal(false);
     setLoading(true);
     const form = { name: savedUser?.name || name, email: savedUser?.email || email, phone, household, dependents, timeline, moneyPersonality, faithLevel, incomeStreams, income: String(totalInc), expenseCategories: expCatVals, expenses: String(totalExp), assets, savings, debts, selectedGoals, stress, goals: selectedGoals.join(", ") };
     setTimeout(() => { onComplete(buildPlan(form), savedUser); }, 1800);
+  };
+
+  const handleSave = async () => {
+    if (!saveName || !saveEmail || !savePassword) { setSaveError("Please fill in all fields."); return; }
+    setSaveLoading(true); setSaveError("");
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: saveEmail,
+        password: savePassword,
+        options: { data: { name: saveName } }
+      });
+      if (error) { setSaveError(error.message); setSaveLoading(false); return; }
+      const user = data.user;
+      if (user) {
+        await supabase.from("profiles").upsert({ id: user.id, name: saveName, phone, household, dependents, timeline, money_personality: moneyPersonality, faith_level: faithLevel });
+        await supabase.from("plans").insert({ user_id: user.id, income: totalInc, expenses: totalExp, savings: parseFloat(savings)||0, total_debt: totalDebt, total_assets: totalAssets, surplus: liveSurplus, income_streams: incomeStreams, expense_categories: expCatVals, debts, selected_goals: selectedGoals, stress });
+      }
+      buildAndComplete({ name: saveName, email: saveEmail });
+    } catch(e) { setSaveError("Something went wrong. Please try again."); setSaveLoading(false); }
   };
 
   if (showSaveModal) return (
@@ -801,6 +844,7 @@ function IntakePage({ user, onComplete }) {
           <h2 style={{ fontFamily:"Lora,Georgia,serif", fontSize:"1.6rem", fontWeight:700, color:"#0D1F3C", marginBottom:"0.3rem" }}>Save Your Plan</h2>
           <p style={{ fontSize:"0.85rem", color:"#7A8BA8", lineHeight:1.6 }}>Create a free account to save your Kingdom Wealth plan and access it anytime.</p>
         </div>
+        {saveError && <div style={{ padding:"10px 14px", background:"#FFF5F5", border:"1px solid #FED7D7", borderRadius:8, fontSize:"0.82rem", color:"#B53232", marginBottom:"1rem" }}>{saveError}</div>}
         <div style={{ marginBottom:"1rem" }}>
           <label style={{ display:"block", fontSize:"0.78rem", fontWeight:700, color:"#0D1F3C", marginBottom:"0.3rem" }}>Full Name</label>
           <input style={{ width:"100%", padding:"10px 14px", border:"1.5px solid #E2EAF2", borderRadius:8, fontFamily:"Nunito,sans-serif", fontSize:"0.9rem", color:"#0D1F3C", outline:"none" }} placeholder="Your full name" value={saveName} onChange={e=>setSaveName(e.target.value)} />
@@ -811,12 +855,13 @@ function IntakePage({ user, onComplete }) {
         </div>
         <div style={{ marginBottom:"1.5rem" }}>
           <label style={{ display:"block", fontSize:"0.78rem", fontWeight:700, color:"#0D1F3C", marginBottom:"0.3rem" }}>Create Password</label>
-          <input style={{ width:"100%", padding:"10px 14px", border:"1.5px solid #E2EAF2", borderRadius:8, fontFamily:"Nunito,sans-serif", fontSize:"0.9rem", color:"#0D1F3C", outline:"none" }} type="password" placeholder="Choose a password" value={savePassword} onChange={e=>setSavePassword(e.target.value)} />
+          <input style={{ width:"100%", padding:"10px 14px", border:"1.5px solid #E2EAF2", borderRadius:8, fontFamily:"Nunito,sans-serif", fontSize:"0.9rem", color:"#0D1F3C", outline:"none" }} type="password" placeholder="At least 6 characters" value={savePassword} onChange={e=>setSavePassword(e.target.value)} />
         </div>
         <button
-          onClick={() => buildAndComplete({ name: saveName || name || "Friend", email: saveEmail || email })}
-          style={{ width:"100%", padding:"13px", background:"linear-gradient(135deg,#C9A84C,#E8C97A)", color:"#0D1F3C", border:"none", borderRadius:9, fontFamily:"Nunito,sans-serif", fontSize:"0.95rem", fontWeight:700, cursor:"pointer", marginBottom:"0.75rem" }}>
-          ✨ Save & View My Plan →
+          onClick={handleSave}
+          disabled={saveLoading}
+          style={{ width:"100%", padding:"13px", background: saveLoading ? "#E2EAF2" : "linear-gradient(135deg,#C9A84C,#E8C97A)", color: saveLoading ? "#7A8BA8" : "#0D1F3C", border:"none", borderRadius:9, fontFamily:"Nunito,sans-serif", fontSize:"0.95rem", fontWeight:700, cursor: saveLoading ? "not-allowed" : "pointer", marginBottom:"0.75rem" }}>
+          {saveLoading ? "Saving your plan…" : "✨ Save & View My Plan →"}
         </button>
         <button
           onClick={() => buildAndComplete({ name: name || "Friend", email: email })}
