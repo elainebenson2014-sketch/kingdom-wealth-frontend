@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import React from "react";
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
 const C = {
@@ -487,6 +488,13 @@ const LESSONS = [
   { badge: "Lesson 3", title: "Building Your Emergency Fund", body: "Before aggressively paying off debt, save $1,000 as a starter emergency fund. This protects your plan when life happens unexpectedly.", tip: "💡 An emergency fund converts a crisis into a mere inconvenience. It's peace of mind in a bank account." },
 ];
 
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { hasError: false, error: null }; }
+  static getDerivedStateFromError(error) { return { hasError: true, error }; }
+  componentDidCatch(error) { if (this.props.onError) this.props.onError(String(error)); }
+  render() { if (this.state.hasError) return null; return this.props.children; }
+}
+
 export default function App() {
   const [page, setPage] = useState("landing");
   const [user, setUser] = useState(null);
@@ -495,16 +503,28 @@ export default function App() {
   const [dashTab, setDashTab] = useState("overview");
   const [checked, setChecked] = useState([]);
   const [checkinChecked, setCheckinChecked] = useState([]);
+  const [appError, setAppError] = useState(null);
 
   const login = u => { setUser(u); setAuthModal(null); };
   const logout = () => { setUser(null); setPage("landing"); setPlan(null); };
-  const startJourney = () => setPage("intake");
+  const startJourney = () => { setAppError(null); setPage("intake"); };
 
   const navTabs = [
     { id: "landing", label: "Home" },
     { id: "intake", label: "My Finances" },
     { id: "dashboard", label: "Dashboard" },
   ];
+
+  if (appError) return (
+    <>
+      <style>{CSS}</style>
+      <div style={{ padding: "2rem", maxWidth: 600, margin: "100px auto", fontFamily: "Nunito, sans-serif" }}>
+        <h2 style={{ color: "#B53232", marginBottom: "1rem" }}>Something went wrong</h2>
+        <pre style={{ background: "#FFF5F5", padding: "1rem", borderRadius: 8, fontSize: "0.8rem", color: "#B53232", whiteSpace: "pre-wrap", marginBottom: "1rem" }}>{appError}</pre>
+        <button className="btn btn-navy" onClick={() => { setAppError(null); setPage("landing"); }}>← Back to Home</button>
+      </div>
+    </>
+  );
 
   return (
     <>
@@ -536,12 +556,18 @@ export default function App() {
 
       {authModal && <AuthModal mode={authModal} onClose={() => setAuthModal(null)} onAuth={login} switchMode={m => setAuthModal(m)} />}
       {page === "landing" && <LandingPage onStart={startJourney} />}
-      {page === "intake" && <IntakePage user={user} onComplete={(p) => {
-        try { setPlan(p); setPage("dashboard"); setDashTab("overview"); }
-        catch(e) { console.error("Plan error:", e); setPlan(p); setPage("dashboard"); setDashTab("overview"); }
-      }} />}
+      {page === "intake" && (
+        <ErrorBoundary onError={setAppError}>
+          <IntakePage user={user} onComplete={(p) => {
+            try { setPlan(p); setPage("dashboard"); setDashTab("overview"); }
+            catch(e) { setAppError(String(e)); }
+          }} />
+        </ErrorBoundary>
+      )}
       {page === "dashboard" && (
-        <Dashboard plan={plan || {income:0,expenses:0,debt:0,savings:0,surplus:0,totalAssets:0,incomeStreams:[],budget:[],debts:[],savingsGoals:[{name:"Emergency Fund",target:3000,current:0,icon:"🛡️"}],actions:[{text:"Review your spending this week",tag:"budget"}],scripture:{text:"Commit to the Lord whatever you do.",ref:"Proverbs 16:3"},encouragement:"Welcome! Complete your financial intake to get your personalized plan.",devotional:{day:"This Week",title:"Getting Started",body:"Every financial journey begins with a single step.",verse:'"The plans of the diligent lead to profit." — Proverbs 21:5'},lesson:{title:"The Debt Snowball Method",body:"Pay minimums on all debts. Attack the smallest first.",tip:"💡 Small wins build momentum."},user:{name:user?.name||"Friend",email:""}, incomeStreams:[]}} user={user} dashTab={dashTab} setDashTab={setDashTab} checked={checked} setChecked={setChecked} checkinChecked={checkinChecked} setCheckinChecked={setCheckinChecked} onLogout={logout} onRedo={() => setPage("intake")} />
+        <ErrorBoundary onError={setAppError}>
+          <Dashboard plan={plan || {income:0,expenses:0,debt:0,savings:0,surplus:0,totalAssets:0,incomeStreams:[],budget:[],debts:[],savingsGoals:[{name:"Emergency Fund",target:3000,current:0,icon:"🛡️"}],actions:[{text:"Review your spending this week",tag:"budget"}],scripture:{text:"Commit to the Lord whatever you do.",ref:"Proverbs 16:3"},encouragement:"Welcome! Complete your financial intake.",devotional:{day:"This Week",title:"Getting Started",body:"Every financial journey begins with a single step.",verse:'"The plans of the diligent lead to profit." — Proverbs 21:5'},lesson:{title:"The Debt Snowball Method",body:"Pay minimums on all debts.",tip:"💡 Small wins build momentum."},user:{name:user?.name||"Friend",email:""},incomeStreams:[]}} user={user} dashTab={dashTab} setDashTab={setDashTab} checked={checked} setChecked={setChecked} checkinChecked={checkinChecked} setCheckinChecked={setCheckinChecked} onLogout={logout} onRedo={() => setPage("intake")} />
+        </ErrorBoundary>
       )}
     </>
   );
