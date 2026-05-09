@@ -511,10 +511,112 @@ export default function App() {
   const [checked, setChecked] = useState([]);
   const [checkinChecked, setCheckinChecked] = useState([]);
   const [appError, setAppError] = useState(null);
+  const [loadingSession, setLoadingSession] = useState(true);
 
-  const login = u => { setUser(u); setAuthModal(null); };
-  const logout = () => { setUser(null); setPage("landing"); setPlan(null); };
+  // ── Load saved plan from Supabase ─────────────────────────────────────────
+  const loadPlan = async (supaUser) => {
+    try {
+      const { data: profile } = await supabase.from("profiles").select("*").eq("id", supaUser.id).single();
+      const { data: savedPlan } = await supabase.from("plans").select("*").eq("user_id", supaUser.id).order("updated_at", { ascending: false }).limit(1).single();
+
+      if (savedPlan) {
+        const restored = {
+          user: { name: profile?.name || supaUser.user_metadata?.name || "Friend", email: supaUser.email, household: profile?.household, moneyPersonality: profile?.money_personality, faithLevel: profile?.faith_level },
+          income: savedPlan.income || 0,
+          expenses: savedPlan.expenses || 0,
+          savings: savedPlan.savings || 0,
+          debt: savedPlan.total_debt || 0,
+          totalAssets: savedPlan.total_assets || 0,
+          surplus: savedPlan.surplus || 0,
+          incomeStreams: savedPlan.income_streams || [],
+          debts: (savedPlan.debts || []).sort((a,b) => parseFloat(a.bal)-parseFloat(b.bal)).map((d,i) => ({ ...d, priority: i+1, paidPct: 0, rate: d.rate ? `${d.rate}%` : "—", payment: parseFloat(d.payment)||0, bal: parseFloat(d.bal)||0 })),
+          budget: savedPlan.expense_categories ? Object.entries(savedPlan.expense_categories).filter(([,v])=>parseFloat(v)>0).map(([k,v]) => {
+            const colors = { housing:"#0D1F3C", food:"#1B4D3C", transport:"#C9A84C", healthcare:"#246B52", personal:"#7A8BA8", other:"#B53232" };
+            const labels = { housing:"Housing & Utilities", food:"Food & Groceries", transport:"Transportation", healthcare:"Healthcare", personal:"Personal & Entertainment", other:"Other Expenses" };
+            return { cat: labels[k]||k, color: colors[k]||"#7A8BA8", amount: Math.round(parseFloat(v)), pct: savedPlan.income > 0 ? Math.round(parseFloat(v)/savedPlan.income*100) : 0 };
+          }) : [],
+          savingsGoals: [
+            { name: "Emergency Fund (3 months)", target: Math.round((savedPlan.income||0)*3), current: savedPlan.savings||0, icon: "🛡️" },
+            { name: "Tithe & Giving Fund", target: Math.round((savedPlan.income||0)*0.1*12), current: Math.round((savedPlan.savings||0)*0.15), icon: "💛" },
+          ],
+          actions: [
+            { text: "Review your last 7 days of spending", tag: "budget" },
+            { text: "Make an extra payment toward your smallest debt", tag: "debt" },
+            { text: "Transfer $50 to your Emergency Fund this week", tag: "savings" },
+            { text: "Read Proverbs 3 and apply one principle today", tag: "faith" },
+          ],
+          scripture: { text: "Commit to the Lord whatever you do, and he will establish your plans.", ref: "Proverbs 16:3" },
+          encouragement: `Welcome back, ${profile?.name||"Friend"}! Your plan is right here. Every day you stay consistent is a day closer to freedom. 👑`,
+          devotional: { day:"This Week", title:"Staying the Course", body:"Financial transformation doesn't happen overnight — it happens one faithful decision at a time.", verse:'"The plans of the diligent lead to profit." — Proverbs 21:5' },
+          lesson: { title:"The Debt Snowball Method", body:"List debts smallest to largest. Attack the smallest first. Roll each payment into the next.", tip:"💡 Momentum beats math. Small wins build unstoppable motivation." },
+        };
+        return restored;
+      }
+    } catch(e) { console.log("No saved plan found", e); }
+    return null;
+  };
+
+  // ── Check for existing session on mount ───────────────────────────────────
+  useEffect(() => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session?.user) {
+        const u = session.user;
+        const name = u.user_metadata?.name || u.email?.split("@")[0] || "Friend";
+        setUser({ name, email: u.email });
+        const savedPlan = await loadPlan(u);
+        if (savedPlan) { setPlan(savedPlan); setPage("dashboard"); }
+      }
+      setLoadingSession(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === "SIGNED_IN" && session?.user) {
+        const u = session.user;
+        const name = u.user_metadata?.name || u.email?.split("@")[0] || "Friend";
+        setUser({ name, email: u.email });
+      }
+      if (event === "SIGNED_OUT") { setUser(null); setPlan(null); setPage("landing"); }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const login = async (u) => {
+    setUser(u);
+    setAuthModal(null);
+    // Try to load their saved plan
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      const savedPlan = await loadPlan(session.user);
+      if (savedPlan) { setPlan(savedPlan); setPage("dashboard"); setDashTab("overview"); return; }
+    }
+    // No saved plan — go to intake
+    setPage("intake");
+  };
+
+  const logout = async () => {
+    await supabase.auth.signOut();
+    setUser(null); setPlan(null); setPage("landing");
+  };
   const startJourney = () => { setAppError(null); setPage("intake"); };
+
+  const navTabs = [
+    { id: "landing", label: "Home" },
+    { id: "intake", label: "My Finances" },
+    { id: "dashboard", label: "Dashboard" },
+  ];
+
+  // Show loading spinner while checking session
+  if (loadingSession) return (
+    <>
+      <style>{CSS}</style>
+      <div className="loading-page">
+        <div className="spinner" />
+        <div className="loading-h">Kingdom Wealth Builders</div>
+        <div className="loading-s">Loading your plan…</div>
+      </div>
+    </>
+  );
 
   const navTabs = [
     { id: "landing", label: "Home" },
@@ -543,7 +645,12 @@ export default function App() {
         </div>
         <div className="nav-center">
           {navTabs.map(t => (
-            <button key={t.id} className={`nav-tab ${page === t.id ? "active" : ""}`} onClick={() => t.id === "intake" ? startJourney() : setPage(t.id)}>{t.label}</button>
+            <button key={t.id} className={`nav-tab ${page === t.id ? "active" : ""}`} onClick={() => {
+              if (t.id === "intake") startJourney();
+              else if (t.id === "dashboard" && plan) setPage("dashboard");
+              else if (t.id === "dashboard" && !plan) startJourney();
+              else setPage(t.id);
+            }}>{t.label}</button>
           ))}
         </div>
         <div className="nav-right">
@@ -830,7 +937,7 @@ function IntakePage({ user, onComplete }) {
       const user = data.user;
       if (user) {
         await supabase.from("profiles").upsert({ id: user.id, name: saveName, phone, household, dependents, timeline, money_personality: moneyPersonality, faith_level: faithLevel });
-        await supabase.from("plans").insert({ user_id: user.id, income: totalInc, expenses: totalExp, savings: parseFloat(savings)||0, total_debt: totalDebt, total_assets: totalAssets, surplus: liveSurplus, income_streams: incomeStreams, expense_categories: expCatVals, debts, selected_goals: selectedGoals, stress });
+        await supabase.from("plans").upsert({ user_id: user.id, income: totalInc, expenses: totalExp, savings: parseFloat(savings)||0, total_debt: totalDebt, total_assets: totalAssets, surplus: liveSurplus, income_streams: incomeStreams, expense_categories: expCatVals, debts, selected_goals: selectedGoals, stress, updated_at: new Date().toISOString() });
       }
       buildAndComplete({ name: saveName, email: saveEmail });
     } catch(e) { setSaveError("Something went wrong. Please try again."); setSaveLoading(false); }
