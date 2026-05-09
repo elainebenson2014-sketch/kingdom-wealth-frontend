@@ -1,12 +1,17 @@
 import { useState, useRef, useEffect } from "react";
 import React from "react";
-import { createClient } from "@supabase/supabase-js";
 
-// ─── SUPABASE CLIENT ──────────────────────────────────────────────────────────
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
-);
+// ─── SUPABASE CLIENT (loaded dynamically) ────────────────────────────────────
+let supabase = null;
+const getSupabase = async () => {
+  if (supabase) return supabase;
+  const { createClient } = await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm");
+  supabase = createClient(
+    import.meta.env.VITE_SUPABASE_URL || "",
+    import.meta.env.VITE_SUPABASE_ANON_KEY || ""
+  );
+  return supabase;
+};
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
 const C = {
@@ -516,8 +521,8 @@ export default function App() {
   // ── Load saved plan from Supabase ─────────────────────────────────────────
   const loadPlan = async (supaUser) => {
     try {
-      const { data: profile } = await supabase.from("profiles").select("*").eq("id", supaUser.id).single();
-      const { data: savedPlan } = await supabase.from("plans").select("*").eq("user_id", supaUser.id).order("updated_at", { ascending: false }).limit(1).single();
+      const { data: profile } = await (await getSupabase()).from("profiles").select("*").eq("id", supaUser.id).single();
+      const { data: savedPlan } = await (await getSupabase()).from("plans").select("*").eq("user_id", supaUser.id).order("updated_at", { ascending: false }).limit(1).single();
 
       if (savedPlan) {
         const restored = {
@@ -558,7 +563,7 @@ export default function App() {
 
   // ── Check for existing session on mount ───────────────────────────────────
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    getSupabase().then(sb => sb.auth.getSession()).then(async ({ data: { session } }) => {
       if (session?.user) {
         const u = session.user;
         const name = u.user_metadata?.name || u.email?.split("@")[0] || "Friend";
@@ -569,23 +574,24 @@ export default function App() {
       setLoadingSession(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === "SIGNED_IN" && session?.user) {
-        const u = session.user;
-        const name = u.user_metadata?.name || u.email?.split("@")[0] || "Friend";
-        setUser({ name, email: u.email });
-      }
-      if (event === "SIGNED_OUT") { setUser(null); setPlan(null); setPage("landing"); }
+    getSupabase().then(sb => {
+      const { data: { subscription } } = sb.auth.onAuthStateChange(async (event, session) => {
+        if (event === "SIGNED_IN" && session?.user) {
+          const u = session.user;
+          const name = u.user_metadata?.name || u.email?.split("@")[0] || "Friend";
+          setUser({ name, email: u.email });
+        }
+        if (event === "SIGNED_OUT") { setUser(null); setPlan(null); setPage("landing"); }
+      });
+      return () => subscription.unsubscribe();
     });
-
-    return () => subscription.unsubscribe();
   }, []);
 
   const login = async (u) => {
     setUser(u);
     setAuthModal(null);
     // Try to load their saved plan
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session } } = await (await getSupabase()).auth.getSession();
     if (session?.user) {
       const savedPlan = await loadPlan(session.user);
       if (savedPlan) { setPlan(savedPlan); setPage("dashboard"); setDashTab("overview"); return; }
@@ -595,7 +601,7 @@ export default function App() {
   };
 
   const logout = async () => {
-    await supabase.auth.signOut();
+    await (await getSupabase()).auth.signOut();
     setUser(null); setPlan(null); setPage("landing");
   };
   const startJourney = () => { setAppError(null); setPage("intake"); };
@@ -700,14 +706,14 @@ function AuthModal({ mode, onClose, onAuth, switchMode }) {
     setSubmitting(true); setErr("");
     try {
       if (isLogin) {
-        const { data, error } = await supabase.auth.signInWithPassword({ email: f.email, password: f.password });
+        const { data, error } = await (await getSupabase()).auth.signInWithPassword({ email: f.email, password: f.password });
         if (error) { setErr(error.message); setSubmitting(false); return; }
         const name = data.user?.user_metadata?.name || f.email.split("@")[0];
         onAuth({ name, email: f.email });
       } else {
-        const { data, error } = await supabase.auth.signUp({ email: f.email, password: f.password, options: { data: { name: f.name } } });
+        const { data, error } = await (await getSupabase()).auth.signUp({ email: f.email, password: f.password, options: { data: { name: f.name } } });
         if (error) { setErr(error.message); setSubmitting(false); return; }
-        if (data.user) await supabase.from("profiles").upsert({ id: data.user.id, name: f.name });
+        if (data.user) await (await getSupabase()).from("profiles").upsert({ id: data.user.id, name: f.name });
         onAuth({ name: f.name, email: f.email });
       }
     } catch(e) { setErr("Something went wrong. Please try again."); setSubmitting(false); }
@@ -928,7 +934,7 @@ function IntakePage({ user, onComplete }) {
     if (!saveName || !saveEmail || !savePassword) { setSaveError("Please fill in all fields."); return; }
     setSaveLoading(true); setSaveError("");
     try {
-      const { data, error } = await supabase.auth.signUp({
+      const { data, error } = await (await getSupabase()).auth.signUp({
         email: saveEmail,
         password: savePassword,
         options: { data: { name: saveName } }
@@ -936,8 +942,8 @@ function IntakePage({ user, onComplete }) {
       if (error) { setSaveError(error.message); setSaveLoading(false); return; }
       const user = data.user;
       if (user) {
-        await supabase.from("profiles").upsert({ id: user.id, name: saveName, phone, household, dependents, timeline, money_personality: moneyPersonality, faith_level: faithLevel });
-        await supabase.from("plans").upsert({ user_id: user.id, income: totalInc, expenses: totalExp, savings: parseFloat(savings)||0, total_debt: totalDebt, total_assets: totalAssets, surplus: liveSurplus, income_streams: incomeStreams, expense_categories: expCatVals, debts, selected_goals: selectedGoals, stress, updated_at: new Date().toISOString() });
+        await (await getSupabase()).from("profiles").upsert({ id: user.id, name: saveName, phone, household, dependents, timeline, money_personality: moneyPersonality, faith_level: faithLevel });
+        await (await getSupabase()).from("plans").upsert({ user_id: user.id, income: totalInc, expenses: totalExp, savings: parseFloat(savings)||0, total_debt: totalDebt, total_assets: totalAssets, surplus: liveSurplus, income_streams: incomeStreams, expense_categories: expCatVals, debts, selected_goals: selectedGoals, stress, updated_at: new Date().toISOString() });
       }
       buildAndComplete({ name: saveName, email: saveEmail });
     } catch(e) { setSaveError("Something went wrong. Please try again."); setSaveLoading(false); }
