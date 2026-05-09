@@ -371,37 +371,34 @@ async function askCoach(messages, userContext) {
     exploring: "They are exploring faith-based finance — introduce biblical principles gently as wisdom, not dogma.",
     secular: "They are not religious — focus on practical financial wisdom. Skip religious references unless they bring it up.",
   };
-  const personality = userContext?.moneyPersonality;
-  const faith = userContext?.faithLevel;
-  const household = userContext?.household;
-  const dependents = userContext?.dependents;
   const systemPrompt = `You are the Kingdom Wealth Builders AI Coach — a warm, expert, faith-centered financial stewardship coach.
+${userContext?.moneyPersonality ? `PERSONALITY: ${personalityGuide[userContext.moneyPersonality] || ""}` : ""}
+${userContext?.faithLevel ? `FAITH: ${faithGuide[userContext.faithLevel] || ""}` : ""}
+Be encouraging, practical, and warm. Give ONE clear actionable next step. Format with **bold** for key points.`;
 
-${personality ? `PERSONALITY GUIDANCE: ${personalityGuide[personality] || ""}` : ""}
-${faith ? `FAITH GUIDANCE: ${faithGuide[faith] || ""}` : ""}
-${household ? `HOUSEHOLD CONTEXT: ${household}${dependents && dependents !== "0" ? `, ${dependents} dependent(s)` : ""}` : ""}
-
-Core approach:
-- Deeply encouraging, never shame-based or cold
-- Blend biblical wisdom naturally with practical financial expertise (adjust based on faith level above)
-- Teach one concept at a time — never overwhelm
-- Celebrate every small win enthusiastically
-- Give ONE clear, actionable next step per response
-- Format with **bold** for key points, use simple bullet lists, keep responses warm and human`;
-
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 1000,
-      system: systemPrompt,
-      messages: messages.map(m => ({ role: m.role, content: m.content })),
-    }),
-  });
-  if (!res.ok) throw new Error("API error");
-  const d = await res.json();
-  return d.content?.[0]?.text || "I'm here to help — could you share a bit more?";
+  try {
+    const res = await fetch("https://comfortable-motivation-production-5d65.up.railway.app/ai/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages: messages.map(m => ({ role: m.role, content: m.content })), system: systemPrompt }),
+    });
+    if (!res.ok) throw new Error("API error");
+    const d = await res.json();
+    return d.reply || d.content?.[0]?.text || "I'm here to help — could you share a bit more?";
+  } catch(e) {
+    // Fallback: try Anthropic directly
+    try {
+      const res2 = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1000, system: systemPrompt, messages: messages.map(m => ({ role: m.role, content: m.content })) }),
+      });
+      const d2 = await res2.json();
+      return d2.content?.[0]?.text || "I'm here to help — could you share a bit more?";
+    } catch(e2) {
+      return "I'm having trouble connecting right now. Please try again in a moment. 🙏";
+    }
+  }
 }
 
 function buildPlan(form) {
