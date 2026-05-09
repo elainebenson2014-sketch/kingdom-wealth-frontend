@@ -624,12 +624,6 @@ export default function App() {
     </>
   );
 
-  const navTabs = [
-    { id: "landing", label: "Home" },
-    { id: "intake", label: "My Finances" },
-    { id: "dashboard", label: "Dashboard" },
-  ];
-
   if (appError) return (
     <>
       <style>{CSS}</style>
