@@ -1552,21 +1552,174 @@ function Dashboard({ plan, user, dashTab, setDashTab, checked, setChecked, check
           </div>
         )}
 
-        {dashTab === "savings" && (
-          <div className="card card-p">
-            <div className="card-hdr"><div><div className="card-title">Your Savings Goals</div></div></div>
-            {plan.savingsGoals.map(g => {
-              const pct = Math.min(100, Math.round((g.current / g.target) * 100));
-              return (
-                <div key={g.name} className="card savings-item" style={{ marginBottom: "1rem" }}>
-                  <div className="sav-hdr"><div style={{ display: "flex", alignItems: "center", gap: "8px" }}><span style={{ fontSize: "1.4rem" }}>{g.icon}</span><span className="sav-name">{g.name}</span></div><span className="sav-pct">{pct}% funded</span></div>
-                  <div className="sav-amts"><span>${g.current.toLocaleString()} saved</span><span>Goal: ${g.target.toLocaleString()}</span></div>
-                  <div className="sav-bar-bg"><div className="sav-bar-fill" style={{ width: `${pct}%` }} /></div>
+        {dashTab === "savings" && (() => {
+          const [goals, setGoals] = React.useState(plan.savingsGoals.map(g => ({ ...g, id: g.name, deposits: [] })));
+          const [showAdd, setShowAdd] = React.useState(false);
+          const [newGoalName, setNewGoalName] = React.useState("");
+          const [newGoalTarget, setNewGoalTarget] = React.useState("");
+          const [newGoalIcon, setNewGoalIcon] = React.useState("🎯");
+          const [newGoalDate, setNewGoalDate] = React.useState("");
+          const [depositGoalId, setDepositGoalId] = React.useState(null);
+          const [depositAmt, setDepositAmt] = React.useState("");
+
+          const totalSaved = goals.reduce((s,g) => s + g.current + g.deposits.reduce((d,dep) => d + dep.amount, 0), 0);
+          const totalTarget = goals.reduce((s,g) => s + g.target, 0);
+          const overallPct = totalTarget > 0 ? Math.min(100, Math.round(totalSaved/totalTarget*100)) : 0;
+
+          const addDeposit = (id) => {
+            const amt = parseFloat(depositAmt);
+            if (!amt || amt <= 0) return;
+            setGoals(gs => gs.map(g => g.id === id ? { ...g, deposits: [...g.deposits, { amount: amt, date: new Date().toLocaleDateString() }] } : g));
+            setDepositAmt(""); setDepositGoalId(null);
+          };
+
+          const addCustomGoal = () => {
+            if (!newGoalName || !newGoalTarget) return;
+            setGoals(gs => [...gs, { id: Date.now().toString(), name: newGoalName, target: parseFloat(newGoalTarget), current: 0, icon: newGoalIcon, targetDate: newGoalDate, deposits: [] }]);
+            setNewGoalName(""); setNewGoalTarget(""); setNewGoalDate(""); setShowAdd(false);
+          };
+
+          const removeGoal = (id) => setGoals(gs => gs.filter(g => g.id !== id));
+
+          const inputSt = { padding:"9px 12px", border:"1.5px solid #E2EAF2", borderRadius:8, fontFamily:"Nunito,sans-serif", fontSize:"0.875rem", color:"#0D1F3C", outline:"none", background:"white" };
+
+          return (
+            <div>
+              {/* Summary */}
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"0.75rem", marginBottom:"1.25rem" }}>
+                {[
+                  ["💰 Total saved", `$${Math.round(totalSaved).toLocaleString()}`, "#1B4D3C"],
+                  ["🎯 Total target", `$${Math.round(totalTarget).toLocaleString()}`, "#0D1F3C"],
+                  ["📊 Overall progress", `${overallPct}%`, "#8B6914"],
+                  ["📋 Active goals", goals.length, "#0D1F3C"],
+                ].map(([l,v,c]) => (
+                  <div key={l} className="card stat-card">
+                    <div className="stat-lbl">{l}</div>
+                    <div className="stat-val" style={{ color:c, fontSize:"1.5rem" }}>{v}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Overall progress bar */}
+              <div className="card card-p" style={{ marginBottom:"1.25rem" }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                  <div style={{ fontFamily:"Lora,Georgia,serif", fontSize:"1rem", fontWeight:700, color:"#0D1F3C" }}>Overall savings progress</div>
+                  <span style={{ fontSize:"0.82rem", fontWeight:700, color:"#C9A84C" }}>{overallPct}% of all goals funded</span>
                 </div>
-              );
-            })}
-          </div>
-        )}
+                <div style={{ height:12, background:"#E2EAF2", borderRadius:100, overflow:"hidden", marginBottom:6 }}>
+                  <div style={{ height:"100%", background:"linear-gradient(90deg,#C9A84C,#E8C97A)", borderRadius:100, width:`${overallPct}%`, transition:"width 0.6s ease" }} />
+                </div>
+                <div style={{ display:"flex", justifyContent:"space-between", fontSize:"0.75rem", color:"#7A8BA8" }}>
+                  <span>${Math.round(totalSaved).toLocaleString()} saved</span>
+                  <span>${Math.round(totalTarget - totalSaved).toLocaleString()} remaining</span>
+                </div>
+              </div>
+
+              {/* Goals list */}
+              {goals.map(g => {
+                const totalCurrent = g.current + g.deposits.reduce((s,d) => s + d.amount, 0);
+                const pct = Math.min(100, Math.round((totalCurrent / g.target) * 100));
+                const remaining = Math.max(0, g.target - totalCurrent);
+                const isDepositing = depositGoalId === g.id;
+                const monthlyNeeded = g.targetDate ? (() => {
+                  const months = Math.max(1, Math.round((new Date(g.targetDate) - new Date()) / (1000*60*60*24*30)));
+                  return Math.ceil(remaining / months);
+                })() : null;
+
+                return (
+                  <div key={g.id} className="card card-p" style={{ marginBottom:"1rem" }}>
+                    <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:10 }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                        <span style={{ fontSize:"1.6rem" }}>{g.icon}</span>
+                        <div>
+                          <div style={{ fontFamily:"Lora,Georgia,serif", fontSize:"1rem", fontWeight:700, color:"#0D1F3C" }}>{g.name}</div>
+                          {g.targetDate && <div style={{ fontSize:"0.72rem", color:"#7A8BA8", marginTop:1 }}>Target: {new Date(g.targetDate).toLocaleDateString("en-US",{month:"long",year:"numeric"})}</div>}
+                        </div>
+                      </div>
+                      <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                        <span style={{ fontFamily:"Lora,Georgia,serif", fontSize:"1.1rem", fontWeight:700, color:"#C9A84C" }}>{pct}%</span>
+                        <button onClick={()=>removeGoal(g.id)} style={{ background:"none", border:"none", cursor:"pointer", color:"#7A8BA8", fontSize:14, padding:"2px 6px" }}>🗑</button>
+                      </div>
+                    </div>
+
+                    <div style={{ display:"flex", justifyContent:"space-between", fontSize:"0.78rem", color:"#7A8BA8", marginBottom:5 }}>
+                      <span>Saved: <strong style={{ color:"#1B4D3C" }}>${Math.round(totalCurrent).toLocaleString()}</strong></span>
+                      <span>Goal: <strong style={{ color:"#0D1F3C" }}>${g.target.toLocaleString()}</strong></span>
+                      <span>Remaining: <strong style={{ color:"#B53232" }}>${Math.round(remaining).toLocaleString()}</strong></span>
+                    </div>
+
+                    <div className="sav-bar-bg" style={{ marginBottom:8 }}>
+                      <div className="sav-bar-fill" style={{ width:`${pct}%` }} />
+                    </div>
+
+                    {g.deposits.length > 0 && (
+                      <div style={{ marginBottom:8 }}>
+                        <div style={{ fontSize:"0.7rem", fontWeight:700, color:"#7A8BA8", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:4 }}>Recent deposits</div>
+                        <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                          {g.deposits.slice(-5).map((d,i) => (
+                            <span key={i} style={{ fontSize:"0.72rem", padding:"2px 8px", background:"#EBF6F1", color:"#1B4D3C", borderRadius:100, fontWeight:600 }}>+${d.amount.toLocaleString()} · {d.date}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {monthlyNeeded && remaining > 0 && (
+                      <div style={{ fontSize:"0.75rem", color:"#8B6914", marginBottom:8 }}>
+                        💡 Save <strong>${monthlyNeeded.toLocaleString()}/mo</strong> to reach your target date
+                      </div>
+                    )}
+
+                    {pct >= 100 && (
+                      <div style={{ padding:"8px 12px", background:"#EBF6F1", borderRadius:8, fontSize:"0.82rem", color:"#1B4D3C", fontWeight:700, marginBottom:8 }}>
+                        🎉 Goal achieved! Amazing work — you've reached your target!
+                      </div>
+                    )}
+
+                    {isDepositing ? (
+                      <div style={{ display:"flex", gap:8, alignItems:"center", marginTop:4 }}>
+                        <input style={{ ...inputSt, flex:1 }} type="number" placeholder="Deposit amount" value={depositAmt} onChange={e=>setDepositAmt(e.target.value)} autoFocus />
+                        <button onClick={()=>addDeposit(g.id)} style={{ padding:"8px 16px", background:"#1B4D3C", color:"white", border:"none", borderRadius:8, fontFamily:"Nunito,sans-serif", fontSize:"0.82rem", fontWeight:700, cursor:"pointer" }}>+ Add</button>
+                        <button onClick={()=>{setDepositGoalId(null);setDepositAmt("");}} style={{ padding:"8px 12px", background:"none", border:"1.5px solid #E2EAF2", borderRadius:8, fontFamily:"Nunito,sans-serif", fontSize:"0.82rem", cursor:"pointer", color:"#7A8BA8" }}>Cancel</button>
+                      </div>
+                    ) : (
+                      <button onClick={()=>setDepositGoalId(g.id)} style={{ padding:"7px 16px", background:"none", border:"1.5px solid #C9A84C", borderRadius:8, fontFamily:"Nunito,sans-serif", fontSize:"0.82rem", fontWeight:700, cursor:"pointer", color:"#8B6914" }}>+ Add deposit</button>
+                    )}
+                  </div>
+                );
+              })}
+
+              {/* Add custom goal */}
+              {showAdd ? (
+                <div className="card card-p">
+                  <div style={{ fontFamily:"Lora,Georgia,serif", fontSize:"1rem", fontWeight:700, color:"#0D1F3C", marginBottom:12 }}>✨ New savings goal</div>
+                  <div style={{ display:"grid", gridTemplateColumns:"auto 1fr 1fr 1fr", gap:8, marginBottom:8 }}>
+                    <select style={{ ...inputSt, width:60 }} value={newGoalIcon} onChange={e=>setNewGoalIcon(e.target.value)}>
+                      {["🎯","🏠","🚗","💍","✈️","📚","👶","🌱","💼","🎓","❤️","👑","🛡️","💛"].map(e=><option key={e}>{e}</option>)}
+                    </select>
+                    <input style={inputSt} placeholder="Goal name" value={newGoalName} onChange={e=>setNewGoalName(e.target.value)} />
+                    <div style={{ position:"relative" }}>
+                      <span style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", color:"#7A8BA8", fontSize:"0.85rem" }}>$</span>
+                      <input style={{ ...inputSt, paddingLeft:22, width:"100%" }} type="number" placeholder="Target amount" value={newGoalTarget} onChange={e=>setNewGoalTarget(e.target.value)} />
+                    </div>
+                    <input style={inputSt} type="date" value={newGoalDate} onChange={e=>setNewGoalDate(e.target.value)} />
+                  </div>
+                  <div style={{ display:"flex", gap:8 }}>
+                    <button onClick={addCustomGoal} style={{ padding:"9px 20px", background:"#0D1F3C", color:"white", border:"none", borderRadius:8, fontFamily:"Nunito,sans-serif", fontSize:"0.85rem", fontWeight:700, cursor:"pointer" }}>Create goal</button>
+                    <button onClick={()=>setShowAdd(false)} style={{ padding:"9px 16px", background:"none", border:"1.5px solid #E2EAF2", borderRadius:8, fontFamily:"Nunito,sans-serif", fontSize:"0.85rem", cursor:"pointer", color:"#7A8BA8" }}>Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <button onClick={()=>setShowAdd(true)} style={{ width:"100%", padding:"12px", background:"none", border:"1.5px dashed #C9A84C", borderRadius:10, fontFamily:"Nunito,sans-serif", fontSize:"0.85rem", fontWeight:700, cursor:"pointer", color:"#8B6914" }}>
+                  + Add a custom savings goal
+                </button>
+              )}
+
+              <div style={{ marginTop:"1rem", padding:"10px 14px", background:"#FDF7E8", border:"1px solid #E5D08A", borderRadius:8, fontSize:"0.78rem", color:"#8B6914", lineHeight:1.6 }}>
+                🕊️ <em>"The plans of the diligent lead to profit."</em> — Proverbs 21:5. Every deposit, no matter how small, is a step toward freedom.
+              </div>
+            </div>
+          );
+        })()}
 
         {dashTab === "actions" && (
           <div className="card card-p">
