@@ -439,7 +439,7 @@ function buildPlan(form) {
   const debt = userDebts.reduce((s, d) => s + d.bal, 0);
 
   return {
-    user: { name: form.name, email: form.email, phone: form.phone, goals: form.goals, stress: form.stress, household: form.household, dependents: form.dependents, moneyPersonality: form.moneyPersonality, faithLevel: form.faithLevel, timeline: form.timeline },
+    user: { name: form.name, email: form.email, phone: form.phone, goals: form.goals, stress: form.stress, household: form.household, dependents: form.dependents, moneyPersonality: form.moneyPersonality, faithLevel: form.faithLevel, timeline: form.timeline, creditScore: form.creditScore, creditBureau: form.creditBureau, creditFactors: form.creditFactors },
     income: inc, expenses: exp, debt, savings: sav, surplus, totalAssets,
     incomeStreams: incStreams,
     budget,
@@ -891,6 +891,9 @@ function IntakePage({ user, onComplete }) {
 
   const [selectedGoals, setSelectedGoals] = useState([]);
   const [stress, setStress] = useState("");
+  const [creditScore, setCreditScore] = useState("");
+  const [creditBureau, setCreditBureau] = useState("I don't know");
+  const [creditFactors, setCreditFactors] = useState([]);
 
   // ── Derived values ──
   const toMonthly = (amt, freq) => {
@@ -942,7 +945,7 @@ function IntakePage({ user, onComplete }) {
   const buildAndComplete = async (savedUser) => {
     setShowSaveModal(false);
     setLoading(true);
-    const form = { name: savedUser?.name || name, email: savedUser?.email || email, phone, household, dependents, timeline, moneyPersonality, faithLevel, incomeStreams, income: String(totalInc), expenseCategories: expCatVals, expenses: String(totalExp), assets, savings, debts, selectedGoals, stress, goals: selectedGoals.join(", ") };
+    const form = { name: savedUser?.name || name, email: savedUser?.email || email, phone, household, dependents, timeline, moneyPersonality, faithLevel, incomeStreams, income: String(totalInc), expenseCategories: expCatVals, expenses: String(totalExp), assets, savings, debts, selectedGoals, stress, goals: selectedGoals.join(", "), creditScore, creditBureau, creditFactors };
     setTimeout(() => { onComplete(buildPlan(form), savedUser); }, 1800);
   };
 
@@ -1048,6 +1051,9 @@ function IntakePage({ user, onComplete }) {
   if (debtToInc <= 15) score += 15; else if (debtToInc <= 36) score += 8; else if (debtToInc <= 50) score += 2; else score -= 8;
   if (sav >= totalInc*3) score += 10; else if (sav >= totalInc) score += 5; else if (sav > 0) score += 2;
   if (selectedGoals.includes("give_more")) score += 5;
+  // Credit score factor
+  const cs = parseInt(creditScore) || 0;
+  if (cs >= 800) score += 10; else if (cs >= 740) score += 7; else if (cs >= 670) score += 4; else if (cs >= 580) score += 1; else if (cs > 0) score -= 5;
   score = Math.min(100, Math.max(10, Math.round(score)));
   const scoreColor = score >= 75 ? "#86EFAC" : score >= 50 ? "#E8C97A" : "#FCA5A5";
   const scoreLabel = score >= 75 ? "Strong" : score >= 55 ? "Building" : score >= 40 ? "Developing" : "Starting Out";
@@ -1197,6 +1203,43 @@ function IntakePage({ user, onComplete }) {
             {totalAssets > 0 && <div style={{ textAlign:"right", fontSize:"0.85rem", fontWeight:700, color:"#8B6914", marginBottom:8 }}>Total assets: ${totalAssets.toLocaleString()}</div>}
             {divider}
             <div className="form-group"><label className="form-label">💵 Current liquid savings <span>cash you can access today</span></label><div className="curr"><input className="form-input" type="number" placeholder="0.00" value={savings} onChange={e=>setSavings(e.target.value)} /></div></div>
+            {divider}
+            {sectionHd("📊 Credit score")}
+            <div style={{ fontSize:"0.75rem", color:"#7A8BA8", marginBottom:10 }}>Your credit score affects your interest rates and borrowing power. Check free at Credit Karma, Experian, or your bank app.</div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:10 }}>
+              <div>
+                <label style={{ display:"block", fontSize:"0.72rem", fontWeight:700, color:"#7A8BA8", marginBottom:3 }}>Your credit score (300–850)</label>
+                <input style={inputSt} type="number" placeholder="e.g. 720" min="300" max="850" value={creditScore} onChange={e=>setCreditScore(e.target.value)} />
+                {creditScore && (() => {
+                  const s = parseInt(creditScore);
+                  const [label, color, bg] = s >= 800 ? ["Exceptional 🌟","#1B4D3C","#EBF6F1"] : s >= 740 ? ["Very Good ✅","#246B52","#EBF6F1"] : s >= 670 ? ["Good 👍","#8B6914","#FDF7E8"] : s >= 580 ? ["Fair ⚠️","#B53232","#FFF8F8"] : ["Poor 🚨","#B53232","#FFF8F8"];
+                  return <div style={{ marginTop:6, padding:"6px 10px", background:bg, borderRadius:6, fontSize:"0.75rem", fontWeight:700, color }}>{label} — {s >= 800 ? "Best rates available" : s >= 740 ? "Great rates" : s >= 670 ? "Good rates" : s >= 580 ? "Higher rates, room to improve" : "Limited options, let's fix this"}</div>;
+                })()}
+              </div>
+              <div>
+                <label style={{ display:"block", fontSize:"0.72rem", fontWeight:700, color:"#7A8BA8", marginBottom:3 }}>Bureau / source</label>
+                <select style={selSt} value={creditBureau} onChange={e=>setCreditBureau(e.target.value)}>
+                  <option>I don't know</option>
+                  <option>Credit Karma</option>
+                  <option>Experian</option>
+                  <option>Equifax</option>
+                  <option>TransUnion</option>
+                  <option>My bank app</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label style={{ display:"block", fontSize:"0.72rem", fontWeight:700, color:"#7A8BA8", marginBottom:6 }}>What's hurting your score? <span style={{ fontWeight:400 }}>select all that apply</span></label>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:6 }}>
+                {["Late/missed payments","High credit card balances","Short credit history","Too many hard inquiries","Collections or charge-offs","Limited credit mix","No credit history","I'm not sure"].map(f => {
+                  const sel = creditFactors.includes(f);
+                  return <div key={f} onClick={()=>setCreditFactors(p=>sel?p.filter(x=>x!==f):[...p,f])} style={{ display:"flex", alignItems:"center", gap:8, padding:"7px 10px", borderRadius:8, border:sel?"1.5px solid #C9A84C":"1.5px solid #E2EAF2", background:sel?"#FDF7E8":"white", cursor:"pointer", fontSize:"0.78rem", color:"#0D1F3C" }}>
+                    <div style={{ width:14, height:14, borderRadius:3, border:sel?"none":"1.5px solid #E2EAF2", background:sel?"#C9A84C":"white", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, color:"white", fontWeight:700 }}>{sel?"✓":""}</div>
+                    {f}
+                  </div>;
+                })}
+              </div>
+            </div>
             {totalInc > 0 && totalExp > 0 && (
               <div style={{ padding:"1rem", background:"linear-gradient(135deg,#0D1F3C,#162E56)", borderRadius:12, color:"white", marginTop:8 }}>
                 <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:8, marginBottom:10 }}>
@@ -1329,7 +1372,7 @@ function IntakePage({ user, onComplete }) {
             {/* Summary */}
             <div className="card card-p" style={{ marginBottom:"1rem" }}>
               <div style={{ fontFamily:"Lora,Georgia,serif", fontSize:"0.92rem", fontWeight:700, color:"#0D1F3C", marginBottom:8 }}>📋 Your summary</div>
-              {[["Name",name],["Monthly income",totalInc>0?`$${totalInc.toLocaleString()}`:""],[" Monthly expenses",totalExp>0?`$${totalExp.toLocaleString()}`:""],[" Surplus / deficit",surp>=0?`+$${surp.toLocaleString()}`:`-$${Math.abs(surp).toLocaleString()}`],["Total debt",totalDebt>0?`$${Math.round(totalDebt).toLocaleString()} · ${debts.length} accounts`:"None 🎉"],["Savings",`$${sav.toLocaleString()}`],["Timeline",timeline],["Goals",`${selectedGoals.length} selected`]].filter(([,v])=>v).map(([l,v])=>(
+              {[["Name",name],["Monthly income",totalInc>0?`$${totalInc.toLocaleString()}`:""],[" Monthly expenses",totalExp>0?`$${totalExp.toLocaleString()}`:""],[" Surplus / deficit",surp>=0?`+$${surp.toLocaleString()}`:`-$${Math.abs(surp).toLocaleString()}`],["Total debt",totalDebt>0?`$${Math.round(totalDebt).toLocaleString()} · ${debts.length} accounts`:"None 🎉"],["Savings",`$${sav.toLocaleString()}`],["Credit score", creditScore ? `${creditScore} — ${parseInt(creditScore)>=800?"Exceptional":parseInt(creditScore)>=740?"Very Good":parseInt(creditScore)>=670?"Good":parseInt(creditScore)>=580?"Fair":"Poor"}` : "Not entered"],["Timeline",timeline],["Goals",`${selectedGoals.length} selected`]].filter(([,v])=>v).map(([l,v])=>(
                 <div key={l} className="review-row"><span className="review-label">{l}</span><span className="review-val">{v}</span></div>
               ))}
             </div>
@@ -1362,6 +1405,7 @@ function Dashboard({ plan, user, dashTab, setDashTab, checked, setChecked, check
     { id: "budget", icon: "📊", label: "My Budget" },
     { id: "debt", icon: "💳", label: "Debt Payoff" },
     { id: "savings", icon: "💰", label: "Savings Goals" },
+    { id: "credit", icon: "⭐", label: "Credit Score" },
     { id: "actions", icon: "✅", label: "Weekly Actions" },
     { id: "devotional", icon: "📖", label: "Devotionals" },
     { id: "lessons", icon: "🎓", label: "Financial Lessons" },
@@ -1406,6 +1450,7 @@ function Dashboard({ plan, user, dashTab, setDashTab, checked, setChecked, check
             { icon: "💳", label: "Total Debt", val: `$${plan.debt.toLocaleString()}`, note: `${plan.debts.length} accounts`, cls: "neg" },
             { icon: "📈", label: "Total Savings", val: `$${plan.savings.toLocaleString()}`, note: "Across all goals", cls: "pos" },
             { icon: "✨", label: "Monthly Surplus", val: `$${Math.max(0, plan.surplus).toLocaleString()}`, note: "Available to allocate", cls: plan.surplus >= 0 ? "pos" : "neg" },
+            ...(plan.user?.creditScore ? [{ icon: "⭐", label: "Credit Score", val: plan.user.creditScore, note: (() => { const s = parseInt(plan.user.creditScore); return s >= 800 ? "Exceptional" : s >= 740 ? "Very Good" : s >= 670 ? "Good" : s >= 580 ? "Fair" : "Poor"; })(), cls: (() => { const s = parseInt(plan.user.creditScore); return s >= 670 ? "pos" : s >= 580 ? "" : "neg"; })() }] : []),
             ...(plan.totalAssets > 0 ? [{ icon: "🏦", label: "Net Worth", val: `$${(plan.totalAssets - plan.debt).toLocaleString()}`, note: `$${plan.totalAssets.toLocaleString()} assets`, cls: (plan.totalAssets - plan.debt) >= 0 ? "pos" : "neg" }] : []),
           ].map(s => (
             <div key={s.label} className="card stat-card">
@@ -1595,6 +1640,7 @@ function Dashboard({ plan, user, dashTab, setDashTab, checked, setChecked, check
 
         {dashTab === "coach" && <AICoach user={user} plan={plan} />}
         {dashTab === "tracker" && <BudgetTracker />}
+        {dashTab === "credit" && <CreditScoreTab plan={plan} />}
       </main>
     </div>
   );
@@ -1620,7 +1666,7 @@ function AICoach({ user, plan }) {
     if (!content || loading) return;
     setInput("");
     const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    const context = `User's financial snapshot: Income $${plan.income}/mo, Expenses $${plan.expenses}/mo, Debt $${plan.debt}, Savings $${plan.savings}.`;
+    const context = `User's financial snapshot: Income $${plan.income}/mo, Expenses $${plan.expenses}/mo, Debt $${plan.debt}, Savings $${plan.savings}${plan.user?.creditScore ? `, Credit Score: ${plan.user.creditScore}` : ''}.`;
     const newMsgs = [...msgs, { role: "user", content, time }];
     setMsgs(newMsgs);
     setLoading(true);
@@ -1683,6 +1729,150 @@ function AICoach({ user, plan }) {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── CREDIT SCORE TAB ─────────────────────────────────────────────────────────
+function CreditScoreTab({ plan }) {
+  const score = parseInt(plan.user?.creditScore) || 0;
+  const factors = plan.user?.creditFactors || [];
+  const bureau = plan.user?.creditBureau || "";
+
+  const getRange = (s) => {
+    if (s >= 800) return { label:"Exceptional", color:"#1B4D3C", bg:"#EBF6F1", pct:100, desc:"You qualify for the best interest rates available. Lenders see you as extremely low risk." };
+    if (s >= 740) return { label:"Very Good", color:"#246B52", bg:"#EBF6F1", pct:82, desc:"You qualify for very competitive rates. Most lenders will approve you with excellent terms." };
+    if (s >= 670) return { label:"Good", color:"#8B6914", bg:"#FDF7E8", pct:62, desc:"You qualify for most loans at decent rates. Small improvements could unlock significantly better terms." };
+    if (s >= 580) return { label:"Fair", color:"#B53232", bg:"#FFF8F8", pct:42, desc:"You may face higher interest rates and some denials. Focused effort can move you to Good within 12 months." };
+    if (s > 0) return { label:"Poor", color:"#B53232", bg:"#FFF8F8", pct:20, desc:"Building credit is your top financial priority alongside debt payoff. Every on-time payment helps." };
+    return null;
+  };
+
+  const range = getRange(score);
+
+  const FACTOR_ADVICE = {
+    "Late/missed payments": { impact:"High", tip:"Set up autopay for minimum payments on every account immediately. One on-time payment won't fix it, but 6-12 months of consistency will significantly improve your score.", timeline:"6-12 months to see major improvement" },
+    "High credit card balances": { impact:"High", tip:"Pay down balances to below 30% of your credit limit (ideally below 10%). If your limit is $1,000 keep your balance under $300. This can improve your score within 30 days of the statement closing.", timeline:"30-60 days after paying down" },
+    "Short credit history": { impact:"Medium", tip:"Keep your oldest accounts open even if you don't use them. Don't close old cards — age of accounts matters. Time is the only fix here.", timeline:"Improves naturally over 2-5 years" },
+    "Too many hard inquiries": { impact:"Low-Medium", tip:"Stop applying for new credit for at least 6 months. Each hard inquiry stays on your report for 2 years but only affects your score for 1 year.", timeline:"12 months to minimize impact" },
+    "Collections or charge-offs": { impact:"Very High", tip:"Negotiate a 'pay for delete' agreement — offer to pay in exchange for the collection being removed from your report. Get it in writing before paying.", timeline:"Immediate after removal" },
+    "Limited credit mix": { impact:"Low", tip:"Having a mix of credit types (credit card + installment loan) helps, but don't open accounts just for mix. Focus on other factors first.", timeline:"Long-term strategy" },
+    "No credit history": { impact:"High", tip:"Start with a secured credit card (you put down a deposit as collateral). Use it for small purchases and pay it off in full every month. After 6-12 months you'll have a score.", timeline:"6-12 months to establish score" },
+    "I'm not sure": { impact:"Unknown", tip:"Get your free credit report at AnnualCreditReport.com to see exactly what's on your report. Check all 3 bureaus (Equifax, Experian, TransUnion) for errors.", timeline:"Check immediately" },
+  };
+
+  const SCORE_RANGES = [
+    { label:"300-579", name:"Poor", color:"#B53232", width:"18%" },
+    { label:"580-669", name:"Fair", color:"#E8762A", width:"14%" },
+    { label:"670-739", name:"Good", color:"#E8C97A", width:"11%" },
+    { label:"740-799", name:"Very Good", color:"#246B52", width:"10%" },
+    { label:"800-850", name:"Exceptional", color:"#1B4D3C", width:"8%" },
+  ];
+
+  const markerPct = score > 0 ? Math.min(100, Math.max(0, ((score - 300) / 550) * 100)) : null;
+
+  return (
+    <div>
+      {!score && (
+        <div className="card card-p" style={{ textAlign:"center", padding:"2.5rem" }}>
+          <div style={{ fontSize:"2rem", marginBottom:"0.75rem" }}>⭐</div>
+          <div style={{ fontFamily:"Lora,Georgia,serif", fontSize:"1.1rem", fontWeight:700, color:"#0D1F3C", marginBottom:"0.5rem" }}>No credit score entered</div>
+          <p style={{ fontSize:"0.85rem", color:"#7A8BA8", lineHeight:1.6 }}>Update your financial profile to include your credit score and unlock personalized credit improvement advice.</p>
+          <div style={{ marginTop:"1.25rem", padding:"1rem", background:"#EBF0F8", borderRadius:8, fontSize:"0.82rem", color:"#162E56" }}>
+            💡 Check your free score at <strong>Credit Karma</strong>, <strong>Experian.com</strong>, or your bank app — no hard inquiry required.
+          </div>
+        </div>
+      )}
+
+      {score > 0 && range && (
+        <>
+          {/* Score gauge */}
+          <div className="card card-p" style={{ marginBottom:"1rem" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:"1.5rem", marginBottom:"1.5rem" }}>
+              <div style={{ textAlign:"center", flexShrink:0 }}>
+                <div style={{ fontFamily:"Lora,Georgia,serif", fontSize:"3.5rem", fontWeight:700, color:range.color, lineHeight:1 }}>{score}</div>
+                <div style={{ fontSize:"0.72rem", color:"#7A8BA8", textTransform:"uppercase", letterSpacing:"0.08em" }}>out of 850</div>
+                <div style={{ marginTop:4, padding:"3px 12px", background:range.bg, color:range.color, borderRadius:100, fontSize:"0.75rem", fontWeight:700, display:"inline-block" }}>{range.label}</div>
+                {bureau && bureau !== "I don't know" && <div style={{ fontSize:"0.7rem", color:"#7A8BA8", marginTop:4 }}>via {bureau}</div>}
+              </div>
+              <div style={{ flex:1 }}>
+                <p style={{ fontSize:"0.85rem", color:"#3E506B", lineHeight:1.65, marginBottom:"1rem" }}>{range.desc}</p>
+                {/* Score bar */}
+                <div style={{ position:"relative", marginBottom:6 }}>
+                  <div style={{ display:"flex", height:12, borderRadius:100, overflow:"hidden" }}>
+                    {SCORE_RANGES.map(r => <div key={r.name} style={{ background:r.color, flex:parseFloat(r.width) }} />)}
+                  </div>
+                  {markerPct !== null && (
+                    <div style={{ position:"absolute", top:-4, left:`${markerPct}%`, transform:"translateX(-50%)", width:4, height:20, background:"#0D1F3C", borderRadius:2 }} />
+                  )}
+                </div>
+                <div style={{ display:"flex", justifyContent:"space-between", fontSize:"0.68rem", color:"#7A8BA8" }}>
+                  <span>300</span><span>Poor</span><span>Fair</span><span>Good</span><span>Very Good</span><span>Exceptional</span><span>850</span>
+                </div>
+              </div>
+            </div>
+
+            {/* What your score means for loans */}
+            <div style={{ fontSize:"0.82rem", fontWeight:700, color:"#0D1F3C", marginBottom:10 }}>What this means for your finances</div>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:8 }}>
+              {[
+                ["🏠 Mortgage", score >= 740 ? "Best rates (~6-7%)" : score >= 670 ? "Good rates (~7-8%)" : score >= 580 ? "Higher rates (~8-10%)" : "May not qualify"],
+                ["🚗 Auto loan", score >= 740 ? "Best rates (~5-7%)" : score >= 670 ? "Good rates (~7-10%)" : score >= 580 ? "Subprime (~10-15%)" : "Very high rates"],
+                ["💳 Credit card", score >= 740 ? "Low APR offers" : score >= 670 ? "Average APR" : score >= 580 ? "High APR only" : "Secured cards only"],
+              ].map(([label,val]) => (
+                <div key={label} style={{ padding:"10px 12px", background:"#FAFAF6", borderRadius:8 }}>
+                  <div style={{ fontSize:"0.75rem", fontWeight:700, color:"#0D1F3C", marginBottom:3 }}>{label}</div>
+                  <div style={{ fontSize:"0.75rem", color:"#7A8BA8" }}>{val}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Improvement roadmap */}
+          {factors.length > 0 && (
+            <div className="card card-p" style={{ marginBottom:"1rem" }}>
+              <div style={{ fontFamily:"Lora,Georgia,serif", fontSize:"1rem", fontWeight:700, color:"#0D1F3C", marginBottom:12 }}>🎯 Your credit improvement roadmap</div>
+              {factors.filter(f => FACTOR_ADVICE[f]).map((f,i) => {
+                const a = FACTOR_ADVICE[f];
+                const impactColor = a.impact === "Very High" || a.impact === "High" ? "#B53232" : a.impact === "Medium" ? "#8B6914" : "#7A8BA8";
+                return (
+                  <div key={i} style={{ padding:"12px", borderRadius:10, border:"1px solid #E2EAF2", marginBottom:8, background:"#FAFAF6" }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:6 }}>
+                      <div style={{ fontSize:"0.85rem", fontWeight:700, color:"#0D1F3C" }}>{f}</div>
+                      <span style={{ fontSize:"0.68rem", fontWeight:700, padding:"2px 8px", borderRadius:100, background:`${impactColor}15`, color:impactColor }}>Impact: {a.impact}</span>
+                    </div>
+                    <p style={{ fontSize:"0.8rem", color:"#3E506B", lineHeight:1.6, marginBottom:6 }}>{a.tip}</p>
+                    <div style={{ fontSize:"0.72rem", color:"#8B6914", fontWeight:600 }}>⏱ {a.timeline}</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Quick wins */}
+          <div className="card card-p">
+            <div style={{ fontFamily:"Lora,Georgia,serif", fontSize:"1rem", fontWeight:700, color:"#0D1F3C", marginBottom:12 }}>⚡ Universal credit quick wins</div>
+            {[
+              { action:"Set up autopay for every account", impact:"Prevents missed payments — the #1 score killer", urgent: score < 670 },
+              { action:"Keep credit utilization below 30%", impact:`Pay down balances so each card is under 30% of its limit`, urgent: factors.includes("High credit card balances") },
+              { action:"Don't close old credit cards", impact:"Length of credit history = 15% of your score", urgent: false },
+              { action:"Check your credit report for errors", impact:"1 in 5 reports has errors — dispute them free at AnnualCreditReport.com", urgent: true },
+              { action:"Avoid applying for new credit right now", impact:"Each application = hard inquiry = small score drop", urgent: false },
+            ].map((item, i) => (
+              <div key={i} style={{ display:"flex", gap:10, padding:"10px 0", borderBottom:i<4?"1px solid #F4F6FA":"none" }}>
+                <div style={{ width:8, height:8, borderRadius:"50%", background:item.urgent?"#C9A84C":"#E2EAF2", flexShrink:0, marginTop:5 }} />
+                <div>
+                  <div style={{ fontSize:"0.85rem", fontWeight:700, color:"#0D1F3C", marginBottom:2 }}>{item.action}</div>
+                  <div style={{ fontSize:"0.75rem", color:"#7A8BA8" }}>{item.impact}</div>
+                </div>
+              </div>
+            ))}
+            <div style={{ marginTop:"1rem", padding:"10px 14px", background:"#FDF7E8", border:"1px solid #E5D08A", borderRadius:8, fontSize:"0.78rem", color:"#8B6914", lineHeight:1.6 }}>
+              🕊️ <em>"Owe no one anything, except to love each other."</em> — Romans 13:8. A strong credit score is a tool for stewardship — use it wisely.
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
