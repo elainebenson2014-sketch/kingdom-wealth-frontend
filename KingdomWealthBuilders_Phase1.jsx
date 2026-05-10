@@ -707,7 +707,7 @@ export default function App() {
       )}
       {page === "dashboard" && (
         <ErrorBoundary onError={setAppError}>
-          <Dashboard plan={plan || {income:0,expenses:0,debt:0,savings:0,surplus:0,totalAssets:0,incomeStreams:[],budget:[],debts:[],savingsGoals:[{name:"Emergency Fund",target:3000,current:0,icon:"🛡️"}],actions:[{text:"Review your spending this week",tag:"budget"}],scripture:{text:"Commit to the Lord whatever you do.",ref:"Proverbs 16:3"},encouragement:"Welcome! Complete your financial intake.",devotional:{day:"This Week",title:"Getting Started",body:"Every financial journey begins with a single step.",verse:'"The plans of the diligent lead to profit." — Proverbs 21:5'},lesson:{title:"The Debt Snowball Method",body:"Pay minimums on all debts.",tip:"💡 Small wins build momentum."},user:{name:user?.name||"Friend",email:""},incomeStreams:[]}} user={user} dashTab={dashTab} setDashTab={setDashTab} checked={checked} setChecked={setChecked} checkinChecked={checkinChecked} setCheckinChecked={setCheckinChecked} onLogout={logout} onRedo={() => setPage("intake")} />
+          <Dashboard plan={plan || {income:0,expenses:0,debt:0,savings:0,surplus:0,totalAssets:0,incomeStreams:[],budget:[],debts:[],savingsGoals:[{name:"Emergency Fund",target:3000,current:0,icon:"🛡️"}],actions:[{text:"Review your spending this week",tag:"budget"}],scripture:{text:"Commit to the Lord whatever you do.",ref:"Proverbs 16:3"},encouragement:"Welcome! Complete your financial intake.",devotional:{day:"This Week",title:"Getting Started",body:"Every financial journey begins with a single step.",verse:'"The plans of the diligent lead to profit." — Proverbs 21:5'},lesson:{title:"The Debt Snowball Method",body:"Pay minimums on all debts.",tip:"💡 Small wins build momentum."},user:{name:user?.name||"Friend",email:""},incomeStreams:[]}} user={user} dashTab={dashTab} setDashTab={setDashTab} checked={checked} setChecked={setChecked} checkinChecked={checkinChecked} setCheckinChecked={setCheckinChecked} onLogout={logout} onRedo={() => setPage("intake")} onPlanUpdate={(updated) => setPlan(updated)} />
         </ErrorBoundary>
       )}
     </>
@@ -1489,7 +1489,173 @@ function IntakePage({ user, onComplete }) {
 }
 
 
-function Dashboard({ plan, user, dashTab, setDashTab, checked, setChecked, checkinChecked, setCheckinChecked, onLogout, onRedo }) {
+function QuickEditPanel({ plan, onClose, onSave }) {
+  const [income, setIncome] = React.useState(String(plan.income || ""));
+  const [expenses, setExpenses] = React.useState(String(plan.expenses || ""));
+  const [savings, setSavings] = React.useState(String(plan.savings || ""));
+  const [creditScore, setCreditScore] = React.useState(String(plan.user?.creditScore || ""));
+  const [debts, setDebts] = React.useState(plan.debts?.map(d => ({ ...d, bal: String(d.bal), payment: String(d.payment) })) || []);
+  const [debtName, setDebtName] = React.useState("");
+  const [debtBal, setDebtBal] = React.useState("");
+  const [debtRate, setDebtRate] = React.useState("");
+  const [debtPayment, setDebtPayment] = React.useState("");
+  const [saving, setSaving] = React.useState(false);
+
+  const inputSt = { width:"100%", padding:"9px 12px", border:"1.5px solid #E2EAF2", borderRadius:8, fontFamily:"Nunito,sans-serif", fontSize:"0.875rem", color:"#0D1F3C", outline:"none", background:"white" };
+
+  const inc = parseFloat(income) || 0;
+  const exp = parseFloat(expenses) || 0;
+  const surplus = inc - exp;
+
+  const addDebt = () => {
+    if (!debtName || !debtBal) return;
+    setDebts(p => [...p, { name: debtName, bal: debtBal, rate: debtRate, payment: debtPayment, priority: p.length + 1, paidPct: 0 }]);
+    setDebtName(""); setDebtBal(""); setDebtRate(""); setDebtPayment("");
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    const totalDebt = debts.reduce((s,d) => s + (parseFloat(d.bal)||0), 0);
+    const sortedDebts = [...debts].sort((a,b) => parseFloat(a.bal)-parseFloat(b.bal)).map((d,i) => ({
+      ...d, bal: parseFloat(d.bal)||0, payment: parseFloat(d.payment)||0,
+      rate: d.rate ? (d.rate.includes('%') ? d.rate : `${d.rate}%`) : "—",
+      priority: i+1, paidPct: 0
+    }));
+
+    // Rebuild budget from new expense categories or estimate
+    const budget = plan.budget?.length > 0
+      ? plan.budget.map(b => ({ ...b, amount: Math.round(exp * b.pct / 100) }))
+      : [];
+
+    const updated = {
+      ...plan,
+      income: inc,
+      expenses: exp,
+      savings: parseFloat(savings)||0,
+      debt: totalDebt,
+      surplus,
+      debts: sortedDebts,
+      budget,
+      savingsGoals: plan.savingsGoals?.map(g => ({
+        ...g,
+        current: g.name.includes("Emergency") ? (parseFloat(savings)||0) : g.current,
+        target: g.name.includes("Emergency") ? Math.round(inc*3) : g.target,
+      })) || [],
+      user: { ...plan.user, creditScore },
+    };
+
+    // Save to Supabase if possible
+    try {
+      const sb = await getSupabase();
+      const { data: { session } } = await sb.auth.getSession();
+      if (session?.user) {
+        await sb.from("plans").upsert({
+          user_id: session.user.id,
+          income: inc, expenses: exp,
+          savings: parseFloat(savings)||0,
+          total_debt: totalDebt,
+          surplus,
+          debts,
+          updated_at: new Date().toISOString()
+        });
+      }
+    } catch(e) { console.log("Could not save to Supabase:", e); }
+
+    setSaving(false);
+    onSave(updated);
+  };
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(13,31,60,0.65)", backdropFilter:"blur(8px)", zIndex:500, display:"flex", alignItems:"center", justifyContent:"flex-end" }}>
+      <div style={{ width:"100%", maxWidth:480, height:"100%", background:"white", overflowY:"auto", padding:"1.5rem", boxShadow:"-20px 0 60px rgba(13,31,60,0.2)" }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"1.5rem" }}>
+          <div>
+            <h2 style={{ fontFamily:"Lora,Georgia,serif", fontSize:"1.4rem", fontWeight:700, color:"#0D1F3C" }}>✏️ Update My Finances</h2>
+            <p style={{ fontSize:"0.78rem", color:"#7A8BA8", marginTop:2 }}>Update your numbers without redoing the full intake</p>
+          </div>
+          <button onClick={onClose} style={{ background:"none", border:"none", cursor:"pointer", fontSize:"1.2rem", color:"#7A8BA8", padding:"4px 8px" }}>✕</button>
+        </div>
+
+        {/* Income & Expenses */}
+        <div style={{ marginBottom:"1.25rem" }}>
+          <div style={{ fontSize:"0.78rem", fontWeight:700, color:"#0D1F3C", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:10 }}>💰 Monthly income & expenses</div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
+            <div>
+              <label style={{ display:"block", fontSize:"0.72rem", fontWeight:700, color:"#7A8BA8", marginBottom:3 }}>Monthly income</label>
+              <div style={{ position:"relative" }}><span style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", color:"#7A8BA8" }}>$</span><input style={{ ...inputSt, paddingLeft:22 }} type="number" value={income} onChange={e=>setIncome(e.target.value)} /></div>
+            </div>
+            <div>
+              <label style={{ display:"block", fontSize:"0.72rem", fontWeight:700, color:"#7A8BA8", marginBottom:3 }}>Monthly expenses</label>
+              <div style={{ position:"relative" }}><span style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", color:"#7A8BA8" }}>$</span><input style={{ ...inputSt, paddingLeft:22 }} type="number" value={expenses} onChange={e=>setExpenses(e.target.value)} /></div>
+            </div>
+          </div>
+          {inc > 0 && exp > 0 && (
+            <div style={{ padding:"8px 12px", background:surplus>=0?"#EBF6F1":"#FFF8F8", borderRadius:8, fontSize:"0.82rem", fontWeight:700, color:surplus>=0?"#1B4D3C":"#B53232" }}>
+              {surplus>=0?"✓ Surplus":"⚠ Deficit"}: {surplus>=0?"+":"-"}${Math.abs(surplus).toLocaleString()}/mo
+            </div>
+          )}
+        </div>
+
+        <div style={{ height:1, background:"#E2EAF2", margin:"0 0 1.25rem" }} />
+
+        {/* Savings */}
+        <div style={{ marginBottom:"1.25rem" }}>
+          <div style={{ fontSize:"0.78rem", fontWeight:700, color:"#0D1F3C", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:10 }}>💵 Current savings</div>
+          <div style={{ position:"relative" }}><span style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", color:"#7A8BA8" }}>$</span><input style={{ ...inputSt, paddingLeft:22 }} type="number" value={savings} onChange={e=>setSavings(e.target.value)} /></div>
+        </div>
+
+        <div style={{ height:1, background:"#E2EAF2", margin:"0 0 1.25rem" }} />
+
+        {/* Credit Score */}
+        <div style={{ marginBottom:"1.25rem" }}>
+          <div style={{ fontSize:"0.78rem", fontWeight:700, color:"#0D1F3C", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:10 }}>⭐ Credit score</div>
+          <input style={inputSt} type="number" placeholder="e.g. 720" min="300" max="850" value={creditScore} onChange={e=>setCreditScore(e.target.value)} />
+          {creditScore && (() => {
+            const s = parseInt(creditScore);
+            const [label,color,bg] = s>=800?["Exceptional","#1B4D3C","#EBF6F1"]:s>=740?["Very Good","#246B52","#EBF6F1"]:s>=670?["Good","#8B6914","#FDF7E8"]:s>=580?["Fair","#B53232","#FFF8F8"]:["Poor","#B53232","#FFF8F8"];
+            return <div style={{ marginTop:6, padding:"5px 10px", background:bg, borderRadius:6, fontSize:"0.75rem", fontWeight:700, color }}>{label}</div>;
+          })()}
+        </div>
+
+        <div style={{ height:1, background:"#E2EAF2", margin:"0 0 1.25rem" }} />
+
+        {/* Debts */}
+        <div style={{ marginBottom:"1.25rem" }}>
+          <div style={{ fontSize:"0.78rem", fontWeight:700, color:"#0D1F3C", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:10 }}>💳 Debts</div>
+          {debts.map((d,i) => (
+            <div key={i} style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 10px", background:"#FAFAF6", borderRadius:8, marginBottom:6, fontSize:"0.82rem" }}>
+              <span style={{ background:"#0D1F3C", color:"white", borderRadius:"50%", width:20, height:20, display:"flex", alignItems:"center", justifyContent:"center", fontSize:"0.68rem", fontWeight:700, flexShrink:0 }}>{i+1}</span>
+              <span style={{ flex:1, fontWeight:600 }}>{d.name}</span>
+              <div style={{ position:"relative", width:90 }}>
+                <span style={{ position:"absolute", left:8, top:"50%", transform:"translateY(-50%)", color:"#7A8BA8", fontSize:"0.78rem" }}>$</span>
+                <input style={{ ...inputSt, paddingLeft:18, fontSize:"0.78rem", padding:"5px 8px 5px 18px" }} type="number" value={d.bal} onChange={e=>setDebts(p=>p.map((x,j)=>j===i?{...x,bal:e.target.value}:x))} />
+              </div>
+              <button onClick={()=>setDebts(p=>p.filter((_,j)=>j!==i))} style={{ background:"none", border:"none", cursor:"pointer", color:"#7A8BA8" }}>🗑</button>
+            </div>
+          ))}
+          <div style={{ display:"grid", gridTemplateColumns:"2fr 1fr 1fr auto", gap:6, marginTop:8 }}>
+            <input style={inputSt} placeholder="Debt name" value={debtName} onChange={e=>setDebtName(e.target.value)} />
+            <div style={{ position:"relative" }}><span style={{ position:"absolute", left:8, top:"50%", transform:"translateY(-50%)", color:"#7A8BA8", fontSize:"0.82rem" }}>$</span><input style={{ ...inputSt, paddingLeft:18 }} type="number" placeholder="Balance" value={debtBal} onChange={e=>setDebtBal(e.target.value)} /></div>
+            <input style={inputSt} type="number" placeholder="Rate %" value={debtRate} onChange={e=>setDebtRate(e.target.value)} />
+            <button onClick={addDebt} style={{ padding:"0 12px", background:"#0D1F3C", color:"white", border:"none", borderRadius:8, cursor:"pointer", fontFamily:"Nunito,sans-serif", fontSize:"0.82rem", fontWeight:700 }}>+ Add</button>
+          </div>
+          {debts.length > 0 && <div style={{ marginTop:8, fontSize:"0.78rem", color:"#7A8BA8" }}>Total debt: <strong style={{ color:"#B53232" }}>${debts.reduce((s,d)=>s+(parseFloat(d.bal)||0),0).toLocaleString()}</strong></div>}
+        </div>
+
+        {/* Save button */}
+        <div style={{ display:"flex", gap:8, marginTop:"1.5rem" }}>
+          <button onClick={handleSave} disabled={saving} style={{ flex:1, padding:"13px", background:saving?"#E2EAF2":"linear-gradient(135deg,#C9A84C,#E8C97A)", color:saving?"#7A8BA8":"#0D1F3C", border:"none", borderRadius:9, fontFamily:"Nunito,sans-serif", fontSize:"0.95rem", fontWeight:700, cursor:saving?"not-allowed":"pointer" }}>
+            {saving ? "Saving…" : "✨ Update My Plan"}
+          </button>
+          <button onClick={onClose} style={{ padding:"13px 20px", background:"none", border:"1.5px solid #E2EAF2", borderRadius:9, fontFamily:"Nunito,sans-serif", fontSize:"0.85rem", cursor:"pointer", color:"#7A8BA8" }}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Dashboard({ plan, user, dashTab, setDashTab, checked, setChecked, checkinChecked, setCheckinChecked, onLogout, onRedo, onPlanUpdate }) {
+  const [showQuickEdit, setShowQuickEdit] = React.useState(false);
   const sidebarItems = [
     { id: "overview", icon: "🏠", label: "Overview" },
     { id: "budget", icon: "📊", label: "My Budget" },
@@ -1524,9 +1690,13 @@ function Dashboard({ plan, user, dashTab, setDashTab, checked, setChecked, check
           </div>
         ))}
         <div className="sb-section-label">Account</div>
-        <div className="sb-item" onClick={onRedo}><span className="sb-icon">🔄</span><span>Update My Finances</span></div>
+        <div className="sb-item" onClick={() => setShowQuickEdit(true)}><span className="sb-icon">✏️</span><span>Update My Finances</span></div>
+        <div className="sb-item" onClick={onRedo}><span className="sb-icon">🔄</span><span>Redo Full Intake</span></div>
         <div className="sb-item" onClick={onLogout}><span className="sb-icon">🚪</span><span>Sign Out</span></div>
       </aside>
+
+      {/* Quick Edit Panel */}
+      {showQuickEdit && <QuickEditPanel plan={plan} onClose={() => setShowQuickEdit(false)} onSave={(updated) => { if (onPlanUpdate) onPlanUpdate(updated); setShowQuickEdit(false); }} />}
 
       <main className="dash-main">
         <div style={{ marginBottom: "1.75rem" }}>
