@@ -696,7 +696,7 @@ export default function App() {
       {page === "policies" && <PoliciesPage />}
       {page === "intake" && (
         <ErrorBoundary onError={setAppError}>
-          <IntakePage user={user} onComplete={(p, savedUser) => {
+          <IntakePage user={user} existingPlan={plan} onComplete={(p, savedUser) => {
             try {
               if (savedUser && savedUser.email) setUser(savedUser);
               setPlan(p); setPage("dashboard"); setDashTab("overview");
@@ -942,40 +942,51 @@ function LandingPage({ onStart }) {
   );
 }
 
-function IntakePage({ user, onComplete }) {
+function IntakePage({ user, existingPlan, onComplete }) {
+  const ep = existingPlan; // shorthand
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
 
-  // ── All form state at the top level — no hooks inside render ──
-  const [name, setName] = useState(user?.name || "");
-  const [email, setEmail] = useState(user?.email || "");
-  const [phone, setPhone] = useState("");
-  const [household, setHousehold] = useState("single");
-  const [dependents, setDependents] = useState("0");
-  const [timeline, setTimeline] = useState("1-2 years");
-  const [moneyPersonality, setMoneyPersonality] = useState("");
-  const [faithLevel, setFaithLevel] = useState("");
+  // ── All form state pre-filled from existingPlan if available ──
+  const [name, setName] = useState(ep?.user?.name || user?.name || "");
+  const [email, setEmail] = useState(ep?.user?.email || user?.email || "");
+  const [phone, setPhone] = useState(ep?.user?.phone || "");
+  const [household, setHousehold] = useState(ep?.user?.household || "single");
+  const [dependents, setDependents] = useState(ep?.user?.dependents || "0");
+  const [timeline, setTimeline] = useState(ep?.user?.timeline || "1-2 years");
+  const [moneyPersonality, setMoneyPersonality] = useState(ep?.user?.moneyPersonality || "");
+  const [faithLevel, setFaithLevel] = useState(ep?.user?.faithLevel || "");
 
-  const [incomeStreams, setIncomeStreams] = useState([]);
+  const [incomeStreams, setIncomeStreams] = useState(
+    (ep?.incomeStreams?.length > 0
+      ? ep.incomeStreams
+      : ep?.income > 0
+        ? [{ id: 1, src: "Primary income", amt: String(ep.income), freq: "monthly", cat: "Primary job", monthly: ep.income }]
+        : []
+    ).map(r => ({ ...r, id: r.id || Date.now() + Math.random(), monthly: r.monthly || Math.round(parseFloat(r.amt) || 0) }))
+  );
   const [newIncSrc, setNewIncSrc] = useState("");
   const [newIncAmt, setNewIncAmt] = useState("");
   const [newIncFreq, setNewIncFreq] = useState("monthly");
   const [newIncCat, setNewIncCat] = useState("Primary job");
-  const [expCatVals, setExpCatVals] = useState({ housing:"", food:"", transport:"", healthcare:"", personal:"", other:"" });
-  const [assets, setAssets] = useState({ checking:"", retirement:"", car:"", home:"", other:"" });
-  const [savings, setSavings] = useState("");
+  const [expCatVals, setExpCatVals] = useState(ep?.user?.expenseCategories || { housing:"", food:"", transport:"", healthcare:"", personal:"", other:"" });
+  const [assets, setAssets] = useState(ep?.user?.assets || { checking:"", retirement:"", car:"", home:"", other:"" });
+  const [savings, setSavings] = useState(String(ep?.savings || ""));
 
-  const [debts, setDebts] = useState([]);
+  const [debts, setDebts] = useState(
+    ep?.debts?.filter(d => d.name && d.name !== "Add your debts in the intake form")
+      .map(d => ({ id: Date.now() + Math.random(), name: d.name, bal: String(d.bal || ""), rate: d.rate ? d.rate.replace('%','') : "", payment: String(d.payment || "") })) || []
+  );
   const [debtName, setDebtName] = useState("");
   const [debtBal, setDebtBal] = useState("");
   const [debtRate, setDebtRate] = useState("");
   const [debtPayment, setDebtPayment] = useState("");
 
-  const [selectedGoals, setSelectedGoals] = useState([]);
-  const [stress, setStress] = useState("");
-  const [creditScore, setCreditScore] = useState("");
-  const [creditBureau, setCreditBureau] = useState("I don't know");
-  const [creditFactors, setCreditFactors] = useState([]);
+  const [selectedGoals, setSelectedGoals] = useState(ep?.user?.selectedGoals || []);
+  const [stress, setStress] = useState(ep?.user?.stress || "");
+  const [creditScore, setCreditScore] = useState(String(ep?.user?.creditScore || ""));
+  const [creditBureau, setCreditBureau] = useState(ep?.user?.creditBureau || "I don't know");
+  const [creditFactors, setCreditFactors] = useState(ep?.user?.creditFactors || []);
 
   // ── Derived values ──
   const toMonthly = (amt, freq) => {
@@ -1180,6 +1191,12 @@ function IntakePage({ user, onComplete }) {
         <h1 className="intake-h1">{["Let's Get to Know You","Your Financial Picture","Your Debts","Your Goals & Vision","Review & Build Your Plan"][step]}</h1>
         <p className="intake-sub">{["Your information is private and only used to build your personalized plan.","Be honest — this creates the most accurate and helpful plan for you.","List each debt individually — this powers your snowball payoff strategy.","Select all that apply — your plan will be built around these goals.","Here's what we found. Let's build your plan."][step]}</p>
         <div className="progress-bar"><div className="progress-fill" style={{ width:`${((step+1)/steps.length)*100}%` }} /></div>
+
+        {ep && step === 0 && (
+          <div style={{ padding:"10px 14px", background:"#EBF0F8", border:"1px solid #C0D0E8", borderRadius:8, marginBottom:"1rem", fontSize:"0.82rem", color:"#162E56" }}>
+            ✏️ <strong>Updating your plan</strong> — your existing information is pre-filled. Change only what's different and click through to rebuild your plan.
+          </div>
+        )}
 
         <div className="card card-p">
 
