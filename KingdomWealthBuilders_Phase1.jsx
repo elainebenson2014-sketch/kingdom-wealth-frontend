@@ -1084,7 +1084,6 @@ function IntakePage({ user, existingPlan, onComplete }) {
       if (error) { setSaveError(error.message); setSaveLoading(false); return; }
       const user = data.user;
       if (user) {
-<<<<<<< HEAD
         // Wait for auth to fully propagate
         await new Promise(resolve => setTimeout(resolve, 1000));
         const sb = await getSupabase();
@@ -1093,10 +1092,6 @@ function IntakePage({ user, existingPlan, onComplete }) {
         const { error: planError } = await sb.from("plans").upsert({ user_id: user.id, income: totalInc, expenses: totalExp, savings: parseFloat(savings)||0, total_debt: totalDebt, total_assets: totalAssets, surplus: liveSurplus, income_streams: incomeStreams, expense_categories: expCatVals, debts, selected_goals: selectedGoals, stress, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
         if (planError) console.error("Plan save error:", planError.message);
         else console.log("✅ Plan saved to Supabase!");
-=======
-        await (await getSupabase()).from("profiles").upsert({ id: user.id, name: saveName, phone, household, dependents, timeline, money_personality: moneyPersonality, faith_level: faithLevel });
-        await (await getSupabase()).from("plans").upsert({ user_id: user.id, income: totalInc, expenses: totalExp, savings: parseFloat(savings)||0, total_debt: totalDebt, total_assets: totalAssets, surplus: liveSurplus, income_streams: incomeStreams, expense_categories: expCatVals, debts, selected_goals: selectedGoals, stress, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
->>>>>>> 0632995984e414aff4ea7d3c2b2fa9bb3fd4cc71
       }
       buildAndComplete({ name: saveName, email: saveEmail });
     } catch(e) { setSaveError("Something went wrong. Please try again."); setSaveLoading(false); }
