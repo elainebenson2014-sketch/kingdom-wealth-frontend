@@ -540,8 +540,21 @@ export default function App() {
       const { data: savedPlan } = await (await getSupabase()).from("plans").select("*").eq("user_id", supaUser.id).order("updated_at", { ascending: false }).limit(1).single();
 
       if (savedPlan) {
+        const expCats = savedPlan.expense_categories || {};
         const restored = {
-          user: { name: profile?.name || supaUser.user_metadata?.name || "Friend", email: supaUser.email, household: profile?.household, moneyPersonality: profile?.money_personality, faithLevel: profile?.faith_level },
+          user: {
+            name: profile?.name || supaUser.user_metadata?.name || "Friend",
+            email: supaUser.email,
+            household: profile?.household,
+            moneyPersonality: profile?.money_personality,
+            faithLevel: profile?.faith_level,
+            creditScore: savedPlan.credit_score || "",
+            creditBureau: savedPlan.credit_bureau || "I don't know",
+            creditFactors: savedPlan.credit_factors || [],
+            selectedGoals: savedPlan.selected_goals || [],
+            stress: savedPlan.stress || "",
+            expenseCategories: expCats,
+          },
           income: savedPlan.income || 0,
           expenses: savedPlan.expenses || 0,
           savings: savedPlan.savings || 0,
@@ -549,8 +562,8 @@ export default function App() {
           totalAssets: savedPlan.total_assets || 0,
           surplus: savedPlan.surplus || 0,
           incomeStreams: savedPlan.income_streams || [],
-          debts: (savedPlan.debts || []).sort((a,b) => parseFloat(a.bal)-parseFloat(b.bal)).map((d,i) => ({ ...d, priority: i+1, paidPct: 0, rate: d.rate ? `${d.rate}%` : "—", payment: parseFloat(d.payment)||0, bal: parseFloat(d.bal)||0 })),
-          budget: savedPlan.expense_categories ? Object.entries(savedPlan.expense_categories).filter(([,v])=>parseFloat(v)>0).map(([k,v]) => {
+          debts: (savedPlan.debts || []).sort((a,b) => parseFloat(a.bal)-parseFloat(b.bal)).map((d,i) => ({ ...d, priority: i+1, paidPct: 0, rate: d.rate ? (d.rate.includes('%') ? d.rate : `${d.rate}%`) : "—", payment: parseFloat(d.payment)||0, bal: parseFloat(d.bal)||0 })),
+          budget: Object.keys(expCats).length > 0 ? Object.entries(expCats).filter(([,v])=>parseFloat(v)>0).map(([k,v]) => {
             const colors = { housing:"#0D1F3C", food:"#1B4D3C", transport:"#C9A84C", healthcare:"#246B52", personal:"#7A8BA8", other:"#B53232" };
             const labels = { housing:"Housing & Utilities", food:"Food & Groceries", transport:"Transportation", healthcare:"Healthcare", personal:"Personal & Entertainment", other:"Other Expenses" };
             return { cat: labels[k]||k, color: colors[k]||"#7A8BA8", amount: Math.round(parseFloat(v)), pct: savedPlan.income > 0 ? Math.round(parseFloat(v)/savedPlan.income*100) : 0 };
@@ -1684,11 +1697,13 @@ function QuickEditPanel({ plan, onClose, onSave }) {
       if (session?.user) {
         await sb.from("plans").upsert({
           user_id: session.user.id,
-          income: inc, expenses: exp,
+          income: inc,
+          expenses: exp,
           savings: parseFloat(savings)||0,
           total_debt: totalDebt,
           surplus,
-          debts,
+          debts: debts.map(d => ({ name: d.name, bal: String(d.bal), rate: d.rate||"", payment: String(d.payment||"") })),
+          credit_score: creditScore,
           updated_at: new Date().toISOString()
         });
       }
