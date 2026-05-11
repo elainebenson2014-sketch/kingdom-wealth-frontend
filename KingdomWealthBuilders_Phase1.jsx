@@ -982,7 +982,22 @@ function IntakePage({ user, existingPlan, onComplete }) {
   const [newIncAmt, setNewIncAmt] = useState("");
   const [newIncFreq, setNewIncFreq] = useState("monthly");
   const [newIncCat, setNewIncCat] = useState("Primary job");
-  const [expCatVals, setExpCatVals] = useState(ep?.user?.expenseCategories || { housing:"", food:"", transport:"", healthcare:"", personal:"", other:"" });
+  // Reconstruct expense categories from budget if not directly available
+  const getExpCatVals = () => {
+    if (ep?.user?.expenseCategories && Object.values(ep.user.expenseCategories).some(v => parseFloat(v) > 0)) {
+      return ep.user.expenseCategories;
+    }
+    // Try to reconstruct from budget array
+    if (ep?.budget?.length > 0) {
+      const catMap = { "Housing & Utilities":"housing", "Food & Groceries":"food", "Transportation":"transport", "Healthcare":"healthcare", "Personal & Entertainment":"personal", "Other Expenses":"other" };
+      const vals = { housing:"", food:"", transport:"", healthcare:"", personal:"", other:"" };
+      ep.budget.forEach(b => { const key = catMap[b.cat]; if (key) vals[key] = String(b.amount || ""); });
+      return vals;
+    }
+    return { housing:"", food:"", transport:"", healthcare:"", personal:"", other:"" };
+  };
+
+  const [expCatVals, setExpCatVals] = useState(getExpCatVals());
   const [assets, setAssets] = useState(ep?.user?.assets || { checking:"", retirement:"", car:"", home:"", other:"" });
   const [savings, setSavings] = useState(String(ep?.savings || ""));
 
@@ -1690,12 +1705,12 @@ function QuickEditPanel({ plan, onClose, onSave }) {
       user: { ...plan.user, creditScore },
     };
 
-    // Save to Supabase if possible
+    // Save to Supabase
     try {
       const sb = await getSupabase();
       const { data: { session } } = await sb.auth.getSession();
       if (session?.user) {
-        await sb.from("plans").upsert({
+        const { error } = await sb.from("plans").upsert({
           user_id: session.user.id,
           income: inc,
           expenses: exp,
@@ -1706,6 +1721,10 @@ function QuickEditPanel({ plan, onClose, onSave }) {
           credit_score: creditScore,
           updated_at: new Date().toISOString()
         });
+        if (error) console.error("Supabase save error:", error.message);
+        else console.log("✅ Plan saved to Supabase");
+      } else {
+        console.warn("No active session — changes saved locally only");
       }
     } catch(e) { console.log("Could not save to Supabase:", e); }
 
