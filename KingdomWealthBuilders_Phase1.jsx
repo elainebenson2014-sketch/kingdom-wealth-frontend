@@ -4,7 +4,7 @@ import React from "react";
 // ─── SUPABASE CLIENT (loaded dynamically) ────────────────────────────────────
 let supabase = null;
 const SUPABASE_URL = "https://lmugkdwjijhmjhlqnmyk.supabase.co";
-const SUPABASE_KEY = "sb_publishable_KhuctB50jawJ65sBLrUb4g_VgTThnip";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxtdWdrZHdqaWpobWpobHFubXlrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgzMTk1NzgsImV4cCI6MjA5Mzg5NTU3OH0.t0dAM7qV9Q3tHV1O7mjpPyJ03jxdzxrqJOiQLS2Yb5Q";
 const getSupabase = async () => {
   if (supabase) return supabase;
   try {
