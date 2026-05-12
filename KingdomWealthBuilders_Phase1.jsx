@@ -583,6 +583,7 @@ export default function App() {
             selectedGoals: savedPlan.selected_goals || [],
             stress: savedPlan.stress || "",
             expenseCategories: expCats,
+            savedSavingsGoals: savedPlan.savings_goals || null,
           },
           income: savedPlan.income || 0,
           expenses: savedPlan.expenses || 0,
@@ -1570,7 +1571,12 @@ function IntakePage({ user, existingPlan, onComplete }) {
 
 
 function SavingsTab({ plan }) {
-  const [goals, setGoals] = React.useState(plan.savingsGoals.map(g => ({ ...g, id: g.name, deposits: [] })));
+  // Initialize from plan, including saved deposits if any
+  const [goals, setGoals] = React.useState(() => {
+    const savedGoals = plan.user?.savedSavingsGoals;
+    if (savedGoals && Array.isArray(savedGoals)) return savedGoals;
+    return plan.savingsGoals.map(g => ({ ...g, id: g.name, deposits: [] }));
+  });
   const [showAdd, setShowAdd] = React.useState(false);
   const [newGoalName, setNewGoalName] = React.useState("");
   const [newGoalTarget, setNewGoalTarget] = React.useState("");
@@ -1578,6 +1584,22 @@ function SavingsTab({ plan }) {
   const [newGoalDate, setNewGoalDate] = React.useState("");
   const [depositGoalId, setDepositGoalId] = React.useState(null);
   const [depositAmt, setDepositAmt] = React.useState("");
+
+  // Save to Supabase whenever goals change
+  React.useEffect(() => {
+    const saveGoals = async () => {
+      try {
+        const sb = await getSupabase();
+        const { data: { session } } = await sb.auth.getSession();
+        if (session?.user) {
+          await sb.from("plans").update({ savings_goals: goals, updated_at: new Date().toISOString() }).eq("user_id", session.user.id);
+        }
+      } catch(e) { console.log("Could not save goals:", e); }
+    };
+    // Debounce - only save if there are actual deposits or custom goals
+    const hasChanges = goals.some(g => g.deposits?.length > 0) || goals.length > (plan.savingsGoals?.length || 0);
+    if (hasChanges) saveGoals();
+  }, [goals]);
 
   const totalSaved = goals.reduce((s,g) => s + g.current + g.deposits.reduce((d,dep) => d + dep.amount, 0), 0);
   const totalTarget = goals.reduce((s,g) => s + g.target, 0);
