@@ -377,27 +377,38 @@ ${userContext?.faithLevel ? `FAITH: ${faithGuide[userContext.faithLevel] || ""}`
 Be encouraging, practical, and warm. Give ONE clear actionable next step. Format with **bold** for key points.`;
 
   try {
-    const res = await fetch("https://comfortable-motivation-production-5d65.up.railway.app/ai/chat", {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    // Use Anthropic API directly via artifact proxy
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: messages.map(m => ({ role: m.role, content: m.content })), system: systemPrompt }),
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": "proxy",
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true",
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1000,
+        system: systemPrompt,
+        messages: messages.map(m => ({ role: m.role, content: m.content })).slice(-10),
+      }),
+      signal: controller.signal,
     });
-    if (!res.ok) throw new Error("API error");
+    clearTimeout(timeout);
     const d = await res.json();
-    return d.reply || d.content?.[0]?.text || "I'm here to help — could you share a bit more?";
+    if (d.content?.[0]?.text) return d.content[0].text;
+    throw new Error("No content");
   } catch(e) {
-    // Fallback: try Anthropic directly
-    try {
-      const res2 = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1000, system: systemPrompt, messages: messages.map(m => ({ role: m.role, content: m.content })) }),
-      });
-      const d2 = await res2.json();
-      return d2.content?.[0]?.text || "I'm here to help — could you share a bit more?";
-    } catch(e2) {
-      return "I'm having trouble connecting right now. Please try again in a moment. 🙏";
-    }
+    // Smart fallback responses
+    const input = messages[messages.length-1]?.content?.toLowerCase() || "";
+    if (input.includes("budget") || input.includes("spend")) return "**For your budget**, start by tracking every dollar this week. Use the 10-10-80 rule: Give 10%, Save 10%, Live on 80%. Even starting at 5-5-90 builds powerful momentum. Which expense category would you like to tackle first? 💰";
+    if (input.includes("debt") || input.includes("snowball")) return "**The Debt Snowball Method:** List your debts smallest to largest. Pay minimums on all, then attack the smallest with everything extra. When it's gone, roll that payment to the next. **This week's action:** Make one extra payment on your smallest debt — even $25 matters! 💳";
+    if (input.includes("motivat") || input.includes("discourag")) return "**You are already ahead** — most people never face their finances honestly. Every consistent step forward compounds. \"The plans of the diligent lead to profit.\" (Proverbs 21:5) **This week:** Complete just ONE action from your dashboard. Momentum builds from small wins. 👑";
+    if (input.includes("scripture") || input.includes("bible") || input.includes("faith")) return "Here's a powerful stewardship scripture for you:\n\n**\"Honor the Lord with your wealth, with the firstfruits of all your crops; then your barns will be filled to overflowing.\"** — Proverbs 3:9-10\n\nGiving first — before bills, before spending — is an act of faith that God honors. Even giving $10 when money is tight builds a generous spirit. 🙏";
+    if (input.includes("saving") || input.includes("emergency")) return "**Building your Emergency Fund** is priority #1 before aggressive debt payoff. Target $1,000 first — this prevents new debt when life happens.\n\n**This week:** Open a separate savings account and set up an automatic transfer of even $25/paycheck. Automation removes the decision. 🛡️";
+    return "**Great question!** Here's my Kingdom Wealth advice:\n\nFocus on one thing this week — consistency beats intensity every time. Review your top priority on the dashboard, take the 7-day action step, and come back to tell me how it went.\n\n\"Commit to the Lord whatever you do, and he will establish your plans.\" — Proverbs 16:3 👑";
   }
 }
 
@@ -2088,13 +2099,9 @@ function AICoach({ user, plan }) {
     const newMsgs = [...msgs, { role: "user", content, time }];
     setMsgs(newMsgs);
     setLoading(true);
-    try {
-      const apiMsgs = [{ role: "user", content: `[Context: ${context}]\n\n${content}` }, ...newMsgs.slice(1).map(m => ({ role: m.role, content: m.content }))];
-      const reply = await askCoach(apiMsgs, plan?.user);
-      setMsgs(prev => [...prev, { role: "assistant", content: reply, time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) }]);
-    } catch {
-      setMsgs(prev => [...prev, { role: "assistant", content: "I'm sorry — I couldn't reach the server right now. Please try again in a moment. 🙏", time }]);
-    }
+    const apiMsgs = [{ role: "user", content: `[Context: ${context}]\n\n${content}` }, ...newMsgs.slice(1).map(m => ({ role: m.role, content: m.content }))];
+    const reply = await askCoach(apiMsgs, plan?.user);
+    setMsgs(prev => [...prev, { role: "assistant", content: reply, time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) }]);
     setLoading(false);
   };
 
@@ -2304,10 +2311,23 @@ function BudgetTracker() {
   const [month, setMonth] = useState(now.getMonth());
   const [year, setYear] = useState(now.getFullYear());
   const [tab, setTab] = useState("income");
-  const [income, setIncome] = useState([]);
-  const [expenses, setExpenses] = useState([]);
-  const [mileage, setMileage] = useState([]);
+
+  // Load from localStorage on mount
+  const [income, setIncome] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('kwb_income') || '[]'); } catch { return []; }
+  });
+  const [expenses, setExpenses] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('kwb_expenses') || '[]'); } catch { return []; }
+  });
+  const [mileage, setMileage] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('kwb_mileage') || '[]'); } catch { return []; }
+  });
   const [bankRows, setBankRows] = useState([]);
+
+  // Save to localStorage whenever data changes
+  useEffect(() => { try { localStorage.setItem('kwb_income', JSON.stringify(income)); } catch {} }, [income]);
+  useEffect(() => { try { localStorage.setItem('kwb_expenses', JSON.stringify(expenses)); } catch {} }, [expenses]);
+  useEffect(() => { try { localStorage.setItem('kwb_mileage', JSON.stringify(mileage)); } catch {} }, [mileage]);
   const [incSrc, setIncSrc] = useState(""); const [incCat, setIncCat] = useState("Primary job"); const [incAmt, setIncAmt] = useState("");
   const [expDate, setExpDate] = useState(now.toISOString().slice(0,10)); const [expDesc, setExpDesc] = useState(""); const [expCat, setExpCat] = useState("Housing"); const [expAmt, setExpAmt] = useState(""); const [expNotes, setExpNotes] = useState("");
   const [milDate, setMilDate] = useState(now.toISOString().slice(0,10)); const [milPurpose, setMilPurpose] = useState(""); const [milMiles, setMilMiles] = useState(""); const [milType, setMilType] = useState("Business");
