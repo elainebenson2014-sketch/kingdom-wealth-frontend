@@ -2344,6 +2344,27 @@ function CreditScoreTab({ plan }) {
 
 // ─── BUDGET TRACKER ───────────────────────────────────────────────────────────
 const MILEAGE_RATES = { Business: 0.70, Medical: 0.21, Charity: 0.21, Personal: 0 };
+const EXPENSE_CATEGORIES = [
+  'Housing','Rent / Mortgage','Utilities','Internet / Phone',
+  'Food & groceries','Restaurants / Dining',
+  'Transportation','Auto fuel','Auto insurance','Auto repair',
+  'Healthcare','Health insurance','Medications','Therapy / Counseling',
+  'Debt payment','Credit card payment','Loan payment',
+  'Savings','Investments',
+  'Giving / tithe','Charitable donations',
+  'Personal care','Beauty / Hair','Fitness / Gym',
+  'Entertainment','Streaming / Subscriptions','Hobbies',
+  'Clothing','Shoes',
+  'Education','Books / Learning','Childcare','Kids activities',
+  'Pets','Pet food','Vet bills',
+  'Insurance (Life)','Insurance (Home)','Insurance (Other)',
+  'Gifts','Holidays',
+  'Travel / Vacation','Hotels / Lodging',
+  'Memberships',
+  'Business expense','Office supplies','Software / Tools',
+  'Taxes',
+  'Other'
+];
 const MONTHS_LIST = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 function BudgetTracker({ user }) {
@@ -2427,6 +2448,11 @@ function BudgetTracker({ user }) {
   useEffect(() => { try { localStorage.setItem(sk('accounts'), JSON.stringify(accounts)); } catch {} }, [accounts]);
   const [incSrc, setIncSrc] = useState(""); const [incCat, setIncCat] = useState("Primary job"); const [incAmt, setIncAmt] = useState("");
   const [selectedIds, setSelectedIds] = useState([]); // for bulk delete
+  const [showDedupe, setShowDedupe] = useState(false);
+  const [dedupeScope, setDedupeScope] = useState('month'); // 'month' or 'all'
+  const [expView, setExpView] = useState('list'); // 'list' or 'category'
+  const [expandedCats, setExpandedCats] = useState([]);
+  const [filterCat, setFilterCat] = useState('all');
   const [expDate, setExpDate] = useState(now.toISOString().slice(0,10)); const [expDesc, setExpDesc] = useState(""); const [expCat, setExpCat] = useState("Housing"); const [expAmt, setExpAmt] = useState(""); const [expNotes, setExpNotes] = useState("");
   const [milDate, setMilDate] = useState(now.toISOString().slice(0,10)); const [milPurpose, setMilPurpose] = useState(""); const [milMiles, setMilMiles] = useState(""); const [milType, setMilType] = useState("Business");
 
@@ -2603,6 +2629,7 @@ function BudgetTracker({ user }) {
           <p style={{ fontSize:'0.8rem', color:'#7A8BA8', marginTop:2 }}>Track income, expenses, mileage & import from your bank</p>
         </div>
         <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
+          <button onClick={()=>setShowDedupe(true)} style={{ padding:'7px 12px', borderRadius:8, fontSize:'0.82rem', fontWeight:700, background:'#FDF7E8', color:'#8B6914', border:'1px solid #C9A84C', cursor:'pointer' }}>🧹 Find Duplicates</button>
           <select value={selectedAccount} onChange={e=>setSelectedAccount(e.target.value)} style={{...selSt, width:'auto', borderColor: selectedAccount !== 'all' ? '#C9A84C' : '#E2EAF2', background: selectedAccount !== 'all' ? '#FDF7E8' : '#fff'}}>
             <option value="all">All accounts</option>
             {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
@@ -2710,16 +2737,88 @@ function BudgetTracker({ user }) {
               <input style={inputSt} type="date" value={expDate} onChange={e=>setExpDate(e.target.value)} />
               <input style={inputSt} placeholder="Description" value={expDesc} onChange={e=>setExpDesc(e.target.value)} />
               <select style={selSt} value={expCat} onChange={e=>setExpCat(e.target.value)}>
-                {['Housing','Food & groceries','Transportation','Utilities','Healthcare','Debt payment','Savings','Giving / tithe','Personal care','Entertainment','Clothing','Education','Other'].map(o=><option key={o}>{o}</option>)}
+                {EXPENSE_CATEGORIES.map(o=><option key={o}>{o}</option>)}
               </select>
               <input style={inputSt} type="number" placeholder="Amount" value={expAmt} onChange={e=>setExpAmt(e.target.value)} />
               <input style={inputSt} placeholder="Notes (optional)" value={expNotes} onChange={e=>setExpNotes(e.target.value)} />
               <button className="btn btn-navy" style={{ padding:'0 16px', height:38 }} onClick={addExpense}>+ Add</button>
             </div>
           </div>
+          <div style={{ display:'flex', gap:8, alignItems:'center', marginBottom:'0.75rem', flexWrap:'wrap' }}>
+            <div style={{ display:'flex', gap:4, background:'#FAFAF6', padding:4, borderRadius:8 }}>
+              <button onClick={()=>setExpView('list')} style={{ padding:'6px 14px', borderRadius:6, fontSize:'0.8rem', fontWeight:700, background: expView==='list' ? '#0D1F3C' : 'transparent', color: expView==='list' ? '#fff' : '#7A8BA8', border:'none', cursor:'pointer' }}>📋 List</button>
+              <button onClick={()=>setExpView('category')} style={{ padding:'6px 14px', borderRadius:6, fontSize:'0.8rem', fontWeight:700, background: expView==='category' ? '#0D1F3C' : 'transparent', color: expView==='category' ? '#fff' : '#7A8BA8', border:'none', cursor:'pointer' }}>📂 By Category</button>
+            </div>
+            {expView === 'list' && (
+              <select value={filterCat} onChange={e=>setFilterCat(e.target.value)} style={{...selSt, width:'auto', maxWidth:240, borderColor: filterCat !== 'all' ? '#C9A84C' : '#E2EAF2', background: filterCat !== 'all' ? '#FDF7E8' : '#fff'}}>
+                <option value="all">All categories</option>
+                {[...new Set(mExp.map(r => r.cat || 'Other'))].sort().map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            )}
+          </div>
+          {expView === 'category' ? (
+            <div className="card" style={{ overflow:'hidden', padding:'0.5rem' }}>
+              {(() => {
+                const grouped = {};
+                mExp.forEach(r => {
+                  const c = r.cat || 'Other';
+                  if (!grouped[c]) grouped[c] = [];
+                  grouped[c].push(r);
+                });
+                const sorted = Object.entries(grouped).sort((a,b) => {
+                  const aTotal = a[1].reduce((s,r)=>s+(r.amt||0),0);
+                  const bTotal = b[1].reduce((s,r)=>s+(r.amt||0),0);
+                  return bTotal - aTotal;
+                });
+                if (sorted.length === 0) return <div style={{ padding:'1.5rem', textAlign:'center', color:'#7A8BA8', fontSize:'0.85rem' }}>No expenses this month</div>;
+                return sorted.map(([cat, items]) => {
+                  const total = items.reduce((s,r)=>s+(r.amt||0),0);
+                  const pct = totalExp > 0 ? (total/totalExp*100) : 0;
+                  const expanded = expandedCats.includes(cat);
+                  return (
+                    <div key={cat} style={{ marginBottom:8, border:'1px solid #E2EAF2', borderRadius:8, overflow:'hidden' }}>
+                      <div onClick={()=>setExpandedCats(prev => prev.includes(cat) ? prev.filter(c=>c!==cat) : [...prev, cat])} style={{ padding:'12px 14px', cursor:'pointer', background:'#FAFAF6', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                          <span style={{ fontSize:'0.9rem', color:'#7A8BA8' }}>{expanded ? '▼' : '▶'}</span>
+                          <span style={{ background:'#FFF3F3', color:'#B53232', padding:'3px 10px', borderRadius:6, fontSize:'0.78rem', fontWeight:700 }}>{cat}</span>
+                          <span style={{ fontSize:'0.75rem', color:'#7A8BA8' }}>{items.length} item{items.length!==1?'s':''}</span>
+                        </div>
+                        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                          <span style={{ fontSize:'0.72rem', color:'#7A8BA8', fontWeight:600 }}>{pct.toFixed(0)}%</span>
+                          <span style={{ fontFamily:'Lora,Georgia,serif', fontWeight:700, color:'#B53232', fontSize:'1rem' }}>{fmt(total)}</span>
+                        </div>
+                      </div>
+                      <div style={{ height:3, background:'#E2EAF2' }}>
+                        <div style={{ height:'100%', background:'#B53232', width: `${pct}%` }} />
+                      </div>
+                      {expanded && (
+                        <div style={{ padding:'0 14px' }}>
+                          {items.map(r => (
+                            <div key={r.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 0', borderBottom:'1px solid #F4F6FA', fontSize:'0.85rem' }}>
+                              <span style={{ width:80, color:'#7A8BA8', fontSize:'0.78rem', flexShrink:0 }}>{r.date||'—'}</span>
+                              <span style={{ flex:1, color:'#0D1F3C' }}>{r.desc}</span>
+                              <select value={r.cat || 'Other'} onChange={e => {
+                                const newCat = e.target.value;
+                                setExpenses(prev => prev.map(x => x.id === r.id ? { ...x, cat: newCat } : x));
+                              }} style={{ background:'#FFF3F3', color:'#B53232', padding:'3px 6px', borderRadius:6, fontSize:'0.7rem', fontWeight:700, border:'1px solid #FEDBDB', cursor:'pointer', maxWidth:150 }}>
+                                {EXPENSE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                              </select>
+                              <span style={{ fontWeight:700, color:'#B53232', width:80, textAlign:'right', flexShrink:0 }}>{fmt(r.amt)}</span>
+                              <button onClick={()=>setExpenses(p=>p.filter(x=>x.id!==r.id))} style={{ background:'none', border:'none', cursor:'pointer', color:'#7A8BA8', fontSize:14, flexShrink:0 }}>🗑</button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+          ) : (
           <div className="card" style={{ overflow:'hidden' }}>
             {(() => {
-              const visibleIds = mExp.map(r => r.id);
+              const filteredExp = filterCat === 'all' ? mExp : mExp.filter(r => (r.cat || 'Other') === filterCat);
+              const visibleIds = filteredExp.map(r => r.id);
               const selectedHere = selectedIds.filter(id => visibleIds.includes(id));
               const allSelected = visibleIds.length > 0 && selectedHere.length === visibleIds.length;
               const someSelected = selectedHere.length > 0;
@@ -2750,8 +2849,8 @@ function BudgetTracker({ user }) {
                       {['Date','Description','Category','Account','Amount','Notes',''].map(h=><th key={h} style={{ padding:'10px 12px', fontWeight:700, fontSize:'0.72rem', color:'#7A8BA8', textTransform:'uppercase', textAlign:'left' }}>{h}</th>)}
                     </tr></thead>
                     <tbody>
-                      {mExp.length === 0 && <tr><td colSpan={8} style={{ padding:'1.5rem', textAlign:'center', color:'#7A8BA8', fontSize:'0.85rem' }}>No expenses added for this month</td></tr>}
-                      {mExp.map(r => {
+                      {filteredExp.length === 0 && <tr><td colSpan={8} style={{ padding:'1.5rem', textAlign:'center', color:'#7A8BA8', fontSize:'0.85rem' }}>{filterCat === 'all' ? 'No expenses added for this month' : `No expenses in "${filterCat}"`}</td></tr>}
+                      {filteredExp.map(r => {
                         const isChecked = selectedIds.includes(r.id);
                         return <tr key={r.id} style={{ borderBottom:'1px solid #F4F6FA', background: isChecked ? '#FDF7E8' : 'transparent' }}>
                           <td style={{ padding:'10px 8px 10px 14px' }}>
@@ -2762,7 +2861,14 @@ function BudgetTracker({ user }) {
                           </td>
                           <td style={{ padding:'10px 12px', color:'#7A8BA8', fontSize:'0.8rem' }}>{r.date||'—'}</td>
                           <td style={{ padding:'10px 12px', color:'#0D1F3C' }}>{r.desc}</td>
-                          <td style={{ padding:'10px 12px' }}><span style={{ background:'#FFF3F3', color:'#B53232', padding:'2px 8px', borderRadius:6, fontSize:'0.72rem', fontWeight:700 }}>{r.cat}</span></td>
+                          <td style={{ padding:'10px 12px' }}>
+                            <select value={r.cat || 'Other'} onChange={e => {
+                              const newCat = e.target.value;
+                              setExpenses(prev => prev.map(x => x.id === r.id ? { ...x, cat: newCat } : x));
+                            }} style={{ background:'#FFF3F3', color:'#B53232', padding:'3px 6px', borderRadius:6, fontSize:'0.72rem', fontWeight:700, border:'1px solid #FEDBDB', cursor:'pointer' }}>
+                              {EXPENSE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                          </td>
                           <td style={{ padding:'10px 12px', color:'#7A8BA8', fontSize:'0.78rem' }}>{accounts.find(a=>a.id===(r.account||'acct_default'))?.name || 'Main'}</td>
                           <td style={{ padding:'10px 12px', fontWeight:700, color:'#B53232' }}>{fmt(r.amt)}</td>
                           <td style={{ padding:'10px 12px', color:'#7A8BA8', fontSize:'0.8rem' }}>{r.notes||'—'}</td>
@@ -2775,6 +2881,7 @@ function BudgetTracker({ user }) {
               );
             })()}
           </div>
+          )}
         </div>
       )}
 
@@ -2878,7 +2985,7 @@ function BudgetTracker({ user }) {
           setExpenses(prev => [...prev, ...newExpenses]);
           setBankRows(updatedBankRows);
         };
-        const categories = ['Housing','Food & groceries','Transportation','Utilities','Healthcare','Debt payment','Savings','Giving / tithe','Personal care','Entertainment','Clothing','Education','Other'];
+        const categories = EXPENSE_CATEGORIES;
 
         return (
           <div>
@@ -3117,10 +3224,118 @@ function BudgetTracker({ user }) {
           </div>
         );
       })()}
+      {showDedupe && (() => {
+        // Find duplicates in income and expenses
+        const scope = dedupeScope === 'month' ? (r => r.key === key) : (() => true);
+        const findDupes = (list, descField) => {
+          const filtered = list.filter(scope);
+          const groups = {};
+          filtered.forEach(r => {
+            const date = r.date || '';
+            const desc = (r[descField] || '').toLowerCase().trim();
+            const amt = Math.round(parseFloat(r.amt || 0) * 100);
+            const fingerprint = `${date}|${desc}|${amt}`;
+            if (!groups[fingerprint]) groups[fingerprint] = [];
+            groups[fingerprint].push(r);
+          });
+          // Only groups with duplicates
+          const dupes = Object.values(groups).filter(g => g.length > 1);
+          return dupes;
+        };
+        const incDupes = findDupes(income, 'src');
+        const expDupes = findDupes(expenses, 'desc');
+        const totalDupes = incDupes.reduce((s,g) => s + (g.length-1), 0) + expDupes.reduce((s,g) => s + (g.length-1), 0);
+
+        const handleRemoveAll = () => {
+          if (!confirm(`Remove ${totalDupes} duplicate transactions? The first of each set will be kept.`)) return;
+          // Keep the first of each group, remove the rest
+          const incToRemove = new Set();
+          incDupes.forEach(g => g.slice(1).forEach(r => incToRemove.add(r.id)));
+          const expToRemove = new Set();
+          expDupes.forEach(g => g.slice(1).forEach(r => expToRemove.add(r.id)));
+          setIncome(prev => prev.filter(r => !incToRemove.has(r.id)));
+          setExpenses(prev => prev.filter(r => !expToRemove.has(r.id)));
+          setShowDedupe(false);
+        };
+
+        return (
+          <div style={{ position:'fixed', inset:0, background:'rgba(13,31,60,0.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:'1rem' }} onClick={()=>setShowDedupe(false)}>
+            <div style={{ background:'#fff', borderRadius:12, padding:'1.5rem', maxWidth:700, width:'100%', maxHeight:'85vh', overflow:'auto' }} onClick={e=>e.stopPropagation()}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1rem' }}>
+                <h3 style={{ fontFamily:'Lora,Georgia,serif', fontSize:'1.3rem', fontWeight:700, color:'#0D1F3C' }}>🧹 Find Duplicates</h3>
+                <button onClick={()=>setShowDedupe(false)} style={{ background:'none', border:'none', cursor:'pointer', fontSize:24, color:'#7A8BA8' }}>×</button>
+              </div>
+
+              <div style={{ background:'#FAFAF6', padding:12, borderRadius:8, marginBottom:'1rem' }}>
+                <div style={{ fontSize:'0.78rem', fontWeight:700, color:'#0D1F3C', marginBottom:6 }}>Search scope:</div>
+                <div style={{ display:'flex', gap:8 }}>
+                  <button onClick={()=>setDedupeScope('month')} style={{ flex:1, padding:'8px 12px', borderRadius:6, fontSize:'0.82rem', fontWeight:700, background: dedupeScope==='month' ? '#0D1F3C' : '#fff', color: dedupeScope==='month' ? '#fff' : '#0D1F3C', border:'1px solid #E2EAF2', cursor:'pointer' }}>📅 {MONTHS_LIST[month]} {year}</button>
+                  <button onClick={()=>setDedupeScope('all')} style={{ flex:1, padding:'8px 12px', borderRadius:6, fontSize:'0.82rem', fontWeight:700, background: dedupeScope==='all' ? '#0D1F3C' : '#fff', color: dedupeScope==='all' ? '#fff' : '#0D1F3C', border:'1px solid #E2EAF2', cursor:'pointer' }}>🌍 All time</button>
+                </div>
+              </div>
+
+              {totalDupes === 0 ? (
+                <div style={{ textAlign:'center', padding:'2rem', color:'#1B4D3C' }}>
+                  <div style={{ fontSize:'2.5rem', marginBottom:8 }}>✨</div>
+                  <div style={{ fontWeight:600, color:'#0D1F3C', marginBottom:4 }}>No duplicates found!</div>
+                  <div style={{ fontSize:'0.85rem', color:'#7A8BA8' }}>Your transactions look clean.</div>
+                </div>
+              ) : (
+                <>
+                  <div style={{ background:'#FDF7E8', padding:12, borderRadius:8, marginBottom:'1rem', border:'1px solid #C9A84C' }}>
+                    <div style={{ fontSize:'0.9rem', fontWeight:700, color:'#8B6914', marginBottom:4 }}>Found {totalDupes} duplicate transaction{totalDupes!==1?'s':''}</div>
+                    <div style={{ fontSize:'0.78rem', color:'#8B6914' }}>
+                      Duplicates match by: same date + same amount + same description.
+                      Click "Remove All" to keep only one of each set.
+                    </div>
+                  </div>
+
+                  {incDupes.length > 0 && (
+                    <div style={{ marginBottom:'1rem' }}>
+                      <div style={{ fontWeight:700, color:'#1B4D3C', marginBottom:8, fontSize:'0.9rem' }}>💵 Duplicate Income ({incDupes.length} set{incDupes.length!==1?'s':''})</div>
+                      {incDupes.map((group, gi) => (
+                        <div key={gi} style={{ border:'1px solid #E2EAF2', borderRadius:8, padding:10, marginBottom:8, fontSize:'0.82rem' }}>
+                          <div style={{ fontSize:'0.7rem', color:'#7A8BA8', fontWeight:700, marginBottom:6 }}>{group.length} copies — will keep 1, remove {group.length-1}</div>
+                          {group.map((r, i) => (
+                            <div key={r.id} style={{ display:'flex', justifyContent:'space-between', padding:'4px 0', color: i===0 ? '#0D1F3C' : '#7A8BA8', textDecoration: i===0 ? 'none' : 'line-through' }}>
+                              <span>{r.src} {i===0 ? '✓ KEEP' : '— remove'}</span>
+                              <span style={{ fontWeight:700, color: i===0 ? '#1B4D3C' : '#7A8BA8' }}>{fmt(r.amt)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {expDupes.length > 0 && (
+                    <div style={{ marginBottom:'1rem' }}>
+                      <div style={{ fontWeight:700, color:'#B53232', marginBottom:8, fontSize:'0.9rem' }}>🧾 Duplicate Expenses ({expDupes.length} set{expDupes.length!==1?'s':''})</div>
+                      {expDupes.map((group, gi) => (
+                        <div key={gi} style={{ border:'1px solid #E2EAF2', borderRadius:8, padding:10, marginBottom:8, fontSize:'0.82rem' }}>
+                          <div style={{ fontSize:'0.7rem', color:'#7A8BA8', fontWeight:700, marginBottom:6 }}>{group.length} copies — will keep 1, remove {group.length-1}</div>
+                          {group.map((r, i) => (
+                            <div key={r.id} style={{ display:'flex', justifyContent:'space-between', padding:'4px 0', color: i===0 ? '#0D1F3C' : '#7A8BA8', textDecoration: i===0 ? 'none' : 'line-through' }}>
+                              <span>{r.date} · {r.desc} {i===0 ? '✓ KEEP' : '— remove'}</span>
+                              <span style={{ fontWeight:700, color: i===0 ? '#B53232' : '#7A8BA8' }}>{fmt(r.amt)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:'1rem' }}>
+                    <button onClick={()=>setShowDedupe(false)} style={{ padding:'10px 16px', borderRadius:8, fontSize:'0.85rem', fontWeight:700, background:'#fff', color:'#0D1F3C', border:'1px solid #E2EAF2', cursor:'pointer' }}>Cancel</button>
+                    <button onClick={handleRemoveAll} style={{ padding:'10px 20px', borderRadius:8, fontSize:'0.85rem', fontWeight:700, background:'#B53232', color:'#fff', border:'none', cursor:'pointer' }}>🗑 Remove {totalDupes} duplicate{totalDupes!==1?'s':''}</button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
-
-// end
 
 // v2.1 - QuickEdit + PreFill update
