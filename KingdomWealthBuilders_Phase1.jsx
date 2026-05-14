@@ -2656,13 +2656,17 @@ function BudgetTracker() {
         const importedCount = bankRows.filter(r => r.imported).length;
         const handleImport = (br, asIncome, customCat) => {
           const date = br.date;
-          const m = new Date(date).getMonth();
-          const y = new Date(date).getFullYear();
+          const dt = new Date(date);
+          const m = dt.getMonth();
+          const y = dt.getFullYear();
+          const rowKey = `${y}-${m}`;
+          const amt = Math.abs(parseFloat(br.amt) || 0);
+          if (amt === 0) return;
           if (asIncome) {
-            setIncome(prev => [...prev, { id: Date.now()+Math.random(), date, src: br.desc, amt: Math.abs(br.amt), m, y }]);
+            setIncome(prev => [...prev, { id: Date.now()+Math.random(), key: rowKey, date, src: br.desc, cat: 'Other income', amt, m, y }]);
           } else {
             const cat = customCat || guessCategory(br.desc, false);
-            setExpenses(prev => [...prev, { id: Date.now()+Math.random(), date, desc: br.desc, cat, amt: Math.abs(br.amt), m, y }]);
+            setExpenses(prev => [...prev, { id: Date.now()+Math.random(), key: rowKey, date, desc: br.desc, cat, amt, m, y }]);
           }
           setBankRows(prev => prev.map(r => r.id === br.id ? { ...r, imported: true } : r));
         };
@@ -2672,13 +2676,17 @@ function BudgetTracker() {
           const updatedBankRows = bankRows.map(r => {
             if (dismissedBank.includes(r.id) || r.imported) return r;
             const date = r.date;
-            const m = new Date(date).getMonth();
-            const y = new Date(date).getFullYear();
-            if (r.amt > 0) {
-              newIncomes.push({ id: Date.now()+Math.random()+r.id, date, src: r.desc, amt: r.amt, m, y });
+            const dt = new Date(date);
+            const m = dt.getMonth();
+            const y = dt.getFullYear();
+            const rowKey = `${y}-${m}`;
+            const amt = Math.abs(parseFloat(r.amt) || 0);
+            if (amt === 0) return r;
+            if (parseFloat(r.amt) > 0) {
+              newIncomes.push({ id: Date.now()+Math.random()+Math.random(), key: rowKey, date, src: r.desc, cat: 'Other income', amt, m, y });
             } else {
-              const cat = guessCategory(r.desc, false);
-              newExpenses.push({ id: Date.now()+Math.random()+r.id, date, desc: r.desc, cat, amt: Math.abs(r.amt), m, y });
+              const cat = r.customCat || guessCategory(r.desc, false);
+              newExpenses.push({ id: Date.now()+Math.random()+Math.random(), key: rowKey, date, desc: r.desc, cat, amt, m, y });
             }
             return { ...r, imported: true };
           });
@@ -2826,8 +2834,9 @@ function BudgetTracker() {
 
       {tab === 'annual' && (() => {
         const a = annualStats();
-        const totalDeduct = a.bizMi*0.70 + a.medMi*0.21 + a.aGiving;
-        const maxBar = Math.max(...a.monthly.map(d=>Math.max(d.inc,d.exp)),1);
+        const totalDeduct = (a.bizMi||0)*0.70 + (a.medMi||0)*0.21 + (a.aGiving||0);
+        const monthlyValues = (a.monthly||[]).map(d=>Math.max(d.inc||0, d.exp||0));
+        const maxBar = monthlyValues.length > 0 ? Math.max(...monthlyValues, 1) : 1;
         return (
           <div>
             <div className="card card-p" style={{ marginBottom:'1rem' }}>
