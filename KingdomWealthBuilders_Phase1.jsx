@@ -2449,10 +2449,14 @@ function BudgetTracker({ user }) {
   const [incSrc, setIncSrc] = useState(""); const [incCat, setIncCat] = useState("Primary job"); const [incAmt, setIncAmt] = useState("");
   const [selectedIds, setSelectedIds] = useState([]); // for bulk delete
   const [showDedupe, setShowDedupe] = useState(false);
-  const [dedupeScope, setDedupeScope] = useState('month'); // 'month' or 'all'
-  const [expView, setExpView] = useState('list'); // 'list' or 'category'
+  const [dedupeScope, setDedupeScope] = useState('month');
+  const [expView, setExpView] = useState('list');
   const [expandedCats, setExpandedCats] = useState([]);
   const [filterCat, setFilterCat] = useState('all');
+  const [transfers, setTransfers] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(sk('transfers')) || '[]'); } catch { return []; }
+  });
+  useEffect(() => { try { localStorage.setItem(sk('transfers'), JSON.stringify(transfers)); } catch {} }, [transfers]);
   const [expDate, setExpDate] = useState(now.toISOString().slice(0,10)); const [expDesc, setExpDesc] = useState(""); const [expCat, setExpCat] = useState("Housing"); const [expAmt, setExpAmt] = useState(""); const [expNotes, setExpNotes] = useState("");
   const [milDate, setMilDate] = useState(now.toISOString().slice(0,10)); const [milPurpose, setMilPurpose] = useState(""); const [milMiles, setMilMiles] = useState(""); const [milType, setMilType] = useState("Business");
 
@@ -2888,7 +2892,123 @@ function BudgetTracker({ user }) {
       {tab === 'mileage' && (
         <div>
           <div className="card card-p" style={{ marginBottom:'1rem' }}>
-            <div style={{ fontFamily:'Lora,Georgia,serif', fontSize:'1rem', fontWeight:600, color:'#0D1F3C', marginBottom:12 }}>Log a trip</div>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+              <div style={{ fontFamily:'Lora,Georgia,serif', fontSize:'1rem', fontWeight:600, color:'#0D1F3C' }}>📥 Import mileage from CSV</div>
+              <span style={{ fontSize:'0.7rem', color:'#7A8BA8', fontWeight:600 }}>Optional — skip manual entry</span>
+            </div>
+            <div style={{ fontSize:'0.78rem', color:'#7A8BA8', marginBottom:10 }}>
+              Upload a CSV from MileIQ, Stride, Hurdlr, Everlance, or a custom spreadsheet.
+            </div>
+            <label style={{ display:'block', border:'1.5px dashed #C9A84C', borderRadius:10, padding:'1rem', textAlign:'center', cursor:'pointer', background:'#FDF7E8' }}>
+              <div style={{ fontSize:'1.5rem', marginBottom:4 }}>🚗</div>
+              <div style={{ fontSize:'0.85rem', color:'#8B6914', fontWeight:600 }}>Click to upload mileage CSV</div>
+              <div style={{ fontSize:'0.7rem', color:'#8B6914', marginTop:4 }}>Looks for: Date, Purpose/Description, Miles/Distance, Type/Category</div>
+              <input type="file" accept=".csv" style={{ display:'none' }} onChange={(e) => {
+                const file = e.target.files[0]; if (!file) return;
+                const reader = new FileReader();
+                reader.onload = ev => {
+                  const allLines = ev.target.result.split('\n').filter(l => l.trim());
+                  if (allLines.length < 2) return;
+                  const header = allLines[0].split(',').map(x => x.replace(/"/g,'').trim().toLowerCase());
+                  const findCol = (names) => {
+                    for (const n of names) {
+                      const idx = header.findIndex(h => h.includes(n));
+                      if (idx >= 0) return idx;
+                    }
+                    return -1;
+                  };
+                  const dateIdx = findCol(['date', 'start', 'trip date']);
+                  const purposeIdx = findCol(['purpose', 'description', 'desc', 'notes', 'memo', 'reason', 'from', 'to']);
+                  const milesIdx = findCol(['miles', 'distance', 'mileage']);
+                  const typeIdx = findCol(['type', 'category', 'class', 'classification']);
+
+                  const newTrips = allLines.slice(1).map((l, idx) => {
+                    const c = l.split(',').map(x => x.replace(/"/g,'').trim());
+
+                    // Date
+                    let date = (dateIdx >= 0 ? c[dateIdx] : c[0]) || '';
+                    if (date.includes('/')) {
+                      const parts = date.split('/');
+                      if (parts.length === 3) {
+                        const mo = parts[0].padStart(2,'0');
+                        const dy = parts[1].padStart(2,'0');
+                        let yr = parts[2];
+                        if (yr.length === 2) yr = '20' + yr;
+                        date = `${yr}-${mo}-${dy}`;
+                      }
+                    }
+
+                    // Purpose
+                    let purpose = (purposeIdx >= 0 ? c[purposeIdx] : '') || '';
+                    if (!purpose) {
+                      // Try to combine from/to columns
+                      const fromIdx = findCol(['from']);
+                      const toIdx = findCol(['to', 'destination']);
+                      if (fromIdx >= 0 && toIdx >= 0 && c[fromIdx] && c[toIdx]) {
+                        purpose = `${c[fromIdx]} → ${c[toIdx]}`;
+                      }
+                    }
+                    if (!purpose) purpose = 'Imported trip';
+
+                    // Miles
+                    let miles = 0;
+                    if (milesIdx >= 0 && c[milesIdx]) {
+                      miles = parseFloat(c[milesIdx].replace(/[^0-9.]/g,'')) || 0;
+                    } else {
+                      // Scan for numeric column
+                      for (let i = c.length - 1; i >= 0; i--) {
+                        const n = parseFloat((c[i]||'').replace(/[^0-9.]/g,''));
+                        if (!isNaN(n) && n > 0 && n < 10000) { miles = n; break; }
+                      }
+                    }
+
+                    // Type — normalize values
+                    let type = 'Business';
+                    if (typeIdx >= 0 && c[typeIdx]) {
+                      const t = c[typeIdx].toLowerCase();
+                      if (t.includes('medical') || t.includes('doctor')) type = 'Medical';
+                      else if (t.includes('charity') || t.includes('charitable') || t.includes('volunteer') || t.includes('church') || t.includes('ministry')) type = 'Charity';
+                      else if (t.includes('personal') || t.includes('private')) type = 'Personal';
+                      else if (t.includes('business') || t.includes('work') || t.includes('client')) type = 'Business';
+                    }
+
+                    if (!date || miles === 0) return null;
+                    const dt = new Date(date);
+                    const m = dt.getMonth();
+                    const y = dt.getFullYear();
+                    const rowKey = `${y}-${m}`;
+
+                    return {
+                      id: 'mil_' + Date.now() + '_' + idx + '_' + Math.random().toString(36).slice(2,8),
+                      key: rowKey,
+                      date,
+                      purpose,
+                      miles,
+                      type,
+                      m, y,
+                    };
+                  }).filter(r => r !== null);
+
+                  if (newTrips.length > 0) {
+                    const total = newTrips.reduce((s,t) => s + t.miles, 0);
+                    if (confirm(`Import ${newTrips.length} trips (${total.toFixed(1)} miles total)?`)) {
+                      setMileage(prev => [...prev, ...newTrips]);
+                    }
+                  } else {
+                    alert('No valid trips found in the CSV. Check the file format and column headers.');
+                  }
+                  e.target.value = '';
+                };
+                reader.readAsText(file);
+              }} />
+            </label>
+            <div style={{ fontSize:'0.7rem', color:'#7A8BA8', marginTop:8, fontStyle:'italic' }}>
+              💡 Type column values: "Business" / "Medical" / "Charity" / "Personal" — auto-detected if you use words like "doctor", "client", "church", etc.
+            </div>
+          </div>
+
+          <div className="card card-p" style={{ marginBottom:'1rem' }}>
+            <div style={{ fontFamily:'Lora,Georgia,serif', fontSize:'1rem', fontWeight:600, color:'#0D1F3C', marginBottom:12 }}>Log a trip manually</div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 2fr 1fr 1fr auto', gap:8 }}>
               <input style={inputSt} type="date" value={milDate} onChange={e=>setMilDate(e.target.value)} />
               <input style={inputSt} placeholder="Purpose (e.g. Client visit, Medical)" value={milPurpose} onChange={e=>setMilPurpose(e.target.value)} />
@@ -2920,26 +3040,31 @@ function BudgetTracker({ user }) {
       )}
 
       {tab === 'reconcile' && (() => {
+        // Detect if a transaction is likely a transfer (not real income/expense)
+        const isLikelyTransfer = (desc) => {
+          const d = (desc || '').toLowerCase();
+          return /(transfer|xfer|to checking|from checking|to savings|from savings|to credit|from credit|payment thank you|online banking transfer|internal transfer|ach transfer|wire transfer|withdrawal to|deposit from)/i.test(d);
+        };
         // Auto-categorize from description
         const guessCategory = (desc, isIncome) => {
-          if (isIncome) return null; // income doesn't use categories the same way
+          if (isIncome) return null;
           const d = (desc || '').toLowerCase();
           if (/(walmart|kroger|heb|aldi|safeway|publix|whole foods|trader joe|food|grocery|grocer|costco|sams club|sam's club)/i.test(d)) return 'Food & groceries';
           if (/(restaurant|cafe|coffee|starbucks|mcdonald|chick|wendy|burger|pizza|chipotle|panera|sonic|taco|subway|uber eat|doordash|grubhub|dining)/i.test(d)) return 'Food & groceries';
-          if (/(shell|exxon|chevron|valero|bp|mobil|76|gas|fuel|costco gas|sams gas)/i.test(d)) return 'Transportation';
-          if (/(uber|lyft|taxi|parking|toll|car wash|auto|tire|jiffy|oil change|car repair|mechanic|dealership)/i.test(d)) return 'Transportation';
-          if (/(rent|mortgage|hoa)/i.test(d)) return 'Housing';
+          if (/(shell|exxon|chevron|valero|bp|mobil|76|gas|fuel|costco gas|sams gas)/i.test(d)) return 'Auto fuel';
+          if (/(uber|lyft|taxi|parking|toll|car wash|auto|tire|jiffy|oil change|car repair|mechanic|dealership)/i.test(d)) return 'Auto repair';
+          if (/(rent|mortgage|hoa)/i.test(d)) return 'Rent / Mortgage';
           if (/(electric|gas company|water|sewage|utility|internet|cable|wifi|spectrum|comcast|at\&t|verizon|t-mobile|cell phone|phone bill|cox)/i.test(d)) return 'Utilities';
           if (/(amazon|target|walmart\.com|ebay|etsy|wayfair|home depot|lowes|ikea|best buy|nordstrom|kohls|macy|tjmaxx|marshalls|ross|burlington)/i.test(d)) return 'Personal care';
-          if (/(netflix|hulu|disney|spotify|apple\.com|youtube|prime video|paramount|hbo|peacock|audible|kindle)/i.test(d)) return 'Entertainment';
+          if (/(netflix|hulu|disney|spotify|apple\.com|youtube|prime video|paramount|hbo|peacock|audible|kindle)/i.test(d)) return 'Streaming / Subscriptions';
           if (/(movie|theater|concert|ticketmaster|stubhub|amc|regal|cinema|game|xbox|playstation|steam)/i.test(d)) return 'Entertainment';
-          if (/(pharmacy|cvs|walgreens|rite aid|medical|hospital|doctor|dentist|optometr|copay|deductible|insurance|aetna|blue cross|cigna|united health|humana)/i.test(d)) return 'Healthcare';
+          if (/(pharmacy|cvs|walgreens|rite aid|medical|hospital|doctor|dentist|optometr|copay|deductible|aetna|blue cross|cigna|united health|humana)/i.test(d)) return 'Healthcare';
           if (/(church|tithe|offering|ministry|donate|charity|nonprofit|fellowship|kingdom|gospel|missionary)/i.test(d)) return 'Giving / tithe';
           if (/(school|tuition|education|book|college|university|udemy|coursera|class|training)/i.test(d)) return 'Education';
-          if (/(salon|hair|nail|spa|barber|gym|fitness|peloton|planet fitness|24 hour)/i.test(d)) return 'Personal care';
+          if (/(salon|hair|nail|spa|barber|gym|fitness|peloton|planet fitness|24 hour)/i.test(d)) return 'Beauty / Hair';
           if (/(clothing|apparel|old navy|gap|h\&m|forever 21|zara|nordstrom|nike|adidas|shoe|footlocker)/i.test(d)) return 'Clothing';
-          if (/(loan|credit card|capital one|chase|discover|amex|american express|citi|wells fargo payment|bank of america payment|synchrony|affirm|klarna|afterpay)/i.test(d)) return 'Debt payment';
-          if (/(transfer|savings|venmo cashout|zelle|paypal transfer|withdraw)/i.test(d)) return 'Savings';
+          if (/(loan|credit card|capital one|chase|discover|amex|american express|citi|wells fargo payment|bank of america payment|synchrony|affirm|klarna|afterpay)/i.test(d)) return 'Credit card payment';
+          if (/(venmo|zelle|paypal|cash app|cashapp)/i.test(d)) return 'Other';
           return 'Other';
         };
 
@@ -2964,6 +3089,7 @@ function BudgetTracker({ user }) {
         const handleImportAll = () => {
           const newIncomes = [];
           const newExpenses = [];
+          const newTransfers = [];
           const updatedBankRows = bankRows.map(r => {
             if (dismissedBank.includes(r.id) || r.imported) return r;
             const date = r.date;
@@ -2973,6 +3099,15 @@ function BudgetTracker({ user }) {
             const rowKey = `${y}-${m}`;
             const amt = Math.abs(parseFloat(r.amt) || 0);
             if (amt === 0) return r;
+            if (isLikelyTransfer(r.desc)) {
+              newTransfers.push({
+                id: 'xfer_' + Date.now() + '_' + Math.random(),
+                key: rowKey, date, desc: r.desc, amt, m, y,
+                direction: parseFloat(r.amt) > 0 ? 'in' : 'out',
+                account: importAccount,
+              });
+              return { ...r, imported: true, isTransfer: true };
+            }
             if (parseFloat(r.amt) > 0) {
               newIncomes.push({ id: Date.now()+Math.random()+Math.random(), key: rowKey, date, src: r.desc, cat: 'Other income', amt, m, y, account: importAccount });
             } else {
@@ -2983,6 +3118,7 @@ function BudgetTracker({ user }) {
           });
           setIncome(prev => [...prev, ...newIncomes]);
           setExpenses(prev => [...prev, ...newExpenses]);
+          setTransfers(prev => [...prev, ...newTransfers]);
           setBankRows(updatedBankRows);
         };
         const categories = EXPENSE_CATEGORIES;
@@ -3043,6 +3179,48 @@ function BudgetTracker({ user }) {
               </label>
             </div>
 
+            {transfers.length > 0 && (() => {
+              const accountTransfers = selectedAccount === 'all' ? transfers : transfers.filter(t => t.account === selectedAccount);
+              const monthTransfers = accountTransfers.filter(t => t.key === key);
+              if (monthTransfers.length === 0) return null;
+              const inTotal = monthTransfers.filter(t => t.direction === 'in').reduce((s,t)=>s+t.amt,0);
+              const outTotal = monthTransfers.filter(t => t.direction === 'out').reduce((s,t)=>s+t.amt,0);
+              return (
+                <div className="card card-p" style={{ marginBottom:'1rem', borderLeft:'4px solid #C9A84C' }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+                    <div style={{ fontFamily:'Lora,Georgia,serif', fontSize:'1rem', fontWeight:600, color:'#0D1F3C' }}>🔄 Transfers ({MONTHS_LIST[month]} {year})</div>
+                    <span style={{ fontSize:'0.7rem', color:'#8B6914', fontWeight:700, background:'#FDF7E8', padding:'3px 8px', borderRadius:6 }}>NOT counted as income or expenses</span>
+                  </div>
+                  <div style={{ display:'flex', gap:8, marginBottom:10, fontSize:'0.78rem' }}>
+                    <div style={{ background:'#EBF6F1', padding:'6px 10px', borderRadius:6 }}><strong style={{ color:'#1B4D3C' }}>In:</strong> {fmt(inTotal)} ({monthTransfers.filter(t=>t.direction==='in').length})</div>
+                    <div style={{ background:'#FFF3F3', padding:'6px 10px', borderRadius:6 }}><strong style={{ color:'#B53232' }}>Out:</strong> {fmt(outTotal)} ({monthTransfers.filter(t=>t.direction==='out').length})</div>
+                  </div>
+                  {monthTransfers.map(t => (
+                    <div key={t.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 0', borderTop:'1px solid #F4F6FA', fontSize:'0.82rem' }}>
+                      <span style={{ width:75, color:'#7A8BA8', fontSize:'0.75rem', flexShrink:0 }}>{t.date}</span>
+                      <span style={{ flex:1, color:'#0D1F3C', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{t.desc}</span>
+                      <span style={{ fontSize:'0.7rem', padding:'2px 6px', borderRadius:4, fontWeight:700, background: t.direction==='in' ? '#EBF6F1' : '#FFF3F3', color: t.direction==='in' ? '#1B4D3C' : '#B53232' }}>{t.direction === 'in' ? '⬇ IN' : '⬆ OUT'}</span>
+                      <span style={{ fontWeight:700, color:'#8B6914', width:75, textAlign:'right', flexShrink:0 }}>{fmt(t.amt)}</span>
+                      <button onClick={()=>{
+                        // Move back to income/expense
+                        if (confirm('Reclassify this as income/expense instead of a transfer?')) {
+                          if (t.direction === 'in') {
+                            setIncome(prev => [...prev, { id: Date.now()+Math.random(), key: t.key, date: t.date, src: t.desc, cat: 'Other income', amt: t.amt, m: t.m, y: t.y, account: t.account }]);
+                          } else {
+                            setExpenses(prev => [...prev, { id: Date.now()+Math.random(), key: t.key, date: t.date, desc: t.desc, cat: 'Other', amt: t.amt, m: t.m, y: t.y, account: t.account }]);
+                          }
+                          setTransfers(prev => prev.filter(x => x.id !== t.id));
+                        }
+                      }} style={{ background:'none', border:'1px solid #E2EAF2', borderRadius:4, padding:'2px 6px', cursor:'pointer', fontSize:'0.7rem', color:'#7A8BA8', flexShrink:0 }}>↩</button>
+                      <button onClick={()=>{
+                        if (confirm('Delete this transfer?')) setTransfers(prev => prev.filter(x => x.id !== t.id));
+                      }} style={{ background:'none', border:'none', cursor:'pointer', color:'#7A8BA8', fontSize:14, flexShrink:0 }}>🗑</button>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+
             {importableRows.length > 0 && (
               <>
                 <div style={{ display:'flex', gap:'0.6rem', marginBottom:'1rem', flexWrap:'wrap' }}>
@@ -3063,23 +3241,41 @@ function BudgetTracker({ user }) {
 
                 {importableRows.map((br) => {
                   const isIncome = br.amt > 0;
+                  const isTransfer = isLikelyTransfer(br.desc);
                   const suggestedCat = isIncome ? null : guessCategory(br.desc, false);
+                  const handleMarkAsTransfer = () => {
+                    const date = br.date;
+                    const dt = new Date(date);
+                    const m = dt.getMonth();
+                    const y = dt.getFullYear();
+                    const rowKey = `${y}-${m}`;
+                    const amt = Math.abs(parseFloat(br.amt) || 0);
+                    setTransfers(prev => [...prev, {
+                      id: 'xfer_' + Date.now() + '_' + Math.random(),
+                      key: rowKey, date, desc: br.desc, amt, m, y,
+                      direction: isIncome ? 'in' : 'out',
+                      account: importAccount,
+                    }]);
+                    setBankRows(prev => prev.map(r => r.id === br.id ? { ...r, imported: true, isTransfer: true } : r));
+                  };
                   return (
-                    <div key={br.id} style={{ background:'#fff', border:'1px solid #E2EAF2', borderRadius:10, padding:'12px', marginBottom:8 }}>
+                    <div key={br.id} style={{ background: isTransfer ? '#FDF7E8' : '#fff', border: isTransfer ? '1px solid #C9A84C' : '1px solid #E2EAF2', borderRadius:10, padding:'12px', marginBottom:8 }}>
+                      {isTransfer && <div style={{ fontSize:'0.7rem', fontWeight:700, color:'#8B6914', marginBottom:6, textTransform:'uppercase', letterSpacing:'0.05em' }}>🔄 Possible transfer — moves money between accounts</div>}
                       <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:8, fontSize:'0.85rem' }}>
                         <div style={{ width:75, color:'#7A8BA8', fontSize:'0.75rem', flexShrink:0 }}>{br.date}</div>
                         <div style={{ flex:1, color:'#0D1F3C', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{br.desc}</div>
                         <div style={{ fontWeight:700, color:isIncome?'#1B4D3C':'#B53232', width:85, textAlign:'right', flexShrink:0 }}>{isIncome?'+':'-'}${Math.abs(br.amt).toFixed(2)}</div>
                       </div>
-                      <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+                      <div style={{ display:'flex', gap:6, alignItems:'center', flexWrap:'wrap' }}>
                         {!isIncome && (
                           <select defaultValue={suggestedCat} onChange={(e) => {
                             setBankRows(prev => prev.map(r => r.id === br.id ? { ...r, customCat: e.target.value } : r));
-                          }} style={{ flex:1, padding:'5px 8px', borderRadius:6, border:'1px solid #E2EAF2', fontSize:'0.78rem', background:'#FAFAF6' }}>
+                          }} style={{ flex:'1 1 150px', padding:'5px 8px', borderRadius:6, border:'1px solid #E2EAF2', fontSize:'0.78rem', background:'#FAFAF6' }}>
                             {categories.map(c => <option key={c}>{c}</option>)}
                           </select>
                         )}
-                        {isIncome && <div style={{ flex:1, fontSize:'0.78rem', color:'#1B4D3C', padding:'5px 8px', background:'#EBF6F1', borderRadius:6, fontWeight:600 }}>💵 Income</div>}
+                        {isIncome && <div style={{ flex:'1 1 100px', fontSize:'0.78rem', color:'#1B4D3C', padding:'5px 8px', background:'#EBF6F1', borderRadius:6, fontWeight:600 }}>💵 Income</div>}
+                        <button onClick={handleMarkAsTransfer} style={{ padding:'5px 10px', borderRadius:6, fontSize:'0.78rem', fontWeight:700, background:'#FDF7E8', color:'#8B6914', border:'1px solid #C9A84C', cursor:'pointer' }}>🔄 Transfer</button>
                         <button onClick={()=>handleImport(br, isIncome, br.customCat)} style={{ padding:'5px 12px', borderRadius:6, fontSize:'0.78rem', fontWeight:700, background:'#0D1F3C', color:'#fff', border:'none', cursor:'pointer' }}>✓ Import</button>
                         <button onClick={()=>setDismissedBank([...dismissedBank, br.id])} style={{ padding:'5px 10px', borderRadius:6, fontSize:'0.78rem', fontWeight:600, background:'#fff', color:'#7A8BA8', border:'1px solid #E2EAF2', cursor:'pointer' }}>Skip</button>
                       </div>
