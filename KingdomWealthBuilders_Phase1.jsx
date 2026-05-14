@@ -2108,7 +2108,7 @@ function Dashboard({ plan, user, dashTab, setDashTab, checked, setChecked, check
         )}
 
         {dashTab === "coach" && <AICoach user={user} plan={plan} />}
-        {dashTab === "tracker" && <BudgetTracker />}
+        {dashTab === "tracker" && <BudgetTracker user={plan.user} />}
         {dashTab === "credit" && <CreditScoreTab plan={plan} />}
       </main>
     </div>
@@ -2346,17 +2346,35 @@ function CreditScoreTab({ plan }) {
 const MILEAGE_RATES = { Business: 0.70, Medical: 0.21, Charity: 0.21, Personal: 0 };
 const MONTHS_LIST = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
-function BudgetTracker() {
+function BudgetTracker({ user }) {
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth());
   const [year, setYear] = useState(now.getFullYear());
   const [tab, setTab] = useState("income");
 
-  // Load from localStorage on mount
+  // User-specific storage keys (so each user's Budget Tracker data is private)
+  const userId = user?.email ? user.email.toLowerCase().replace(/[^a-z0-9]/g,'_') : 'guest';
+  const sk = (key) => `kwb_${userId}_${key}`;
+
+  // One-time migration: copy old shared keys to user-specific keys on first load
+  React.useEffect(() => {
+    const migratedFlag = `kwb_${userId}_migrated`;
+    if (localStorage.getItem(migratedFlag)) return;
+    const oldKeys = ['kwb_income','kwb_expenses','kwb_mileage','kwb_bankrows','kwb_reconciled','kwb_dismissed_bank','kwb_accounts'];
+    oldKeys.forEach(oldK => {
+      const newK = oldK.replace('kwb_', `kwb_${userId}_`);
+      const oldVal = localStorage.getItem(oldK);
+      if (oldVal && !localStorage.getItem(newK)) {
+        localStorage.setItem(newK, oldVal);
+      }
+    });
+    localStorage.setItem(migratedFlag, 'true');
+  }, [userId]);
+
+  // Load from localStorage on mount (user-specific keys)
   const ensureKey = (r) => {
     if (!r) return r;
     if (typeof r.key === 'string') return r;
-    // Try to derive key from date or m/y fields
     if (typeof r.m === 'number' && typeof r.y === 'number') return { ...r, key: `${r.y}-${r.m}` };
     if (r.date) {
       try {
@@ -2367,38 +2385,56 @@ function BudgetTracker() {
     return { ...r, key: `${now.getFullYear()}-${now.getMonth()}` };
   };
   const [income, setIncome] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('kwb_income') || '[]').map(ensureKey); } catch { return []; }
+    try { return JSON.parse(localStorage.getItem(sk('income')) || '[]').map(ensureKey); } catch { return []; }
   });
   const [expenses, setExpenses] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('kwb_expenses') || '[]').map(ensureKey); } catch { return []; }
+    try { return JSON.parse(localStorage.getItem(sk('expenses')) || '[]').map(ensureKey); } catch { return []; }
   });
   const [mileage, setMileage] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('kwb_mileage') || '[]').map(ensureKey); } catch { return []; }
+    try { return JSON.parse(localStorage.getItem(sk('mileage')) || '[]').map(ensureKey); } catch { return []; }
   });
   const [bankRows, setBankRows] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('kwb_bankrows') || '[]'); } catch { return []; }
+    try { return JSON.parse(localStorage.getItem(sk('bankrows')) || '[]'); } catch { return []; }
   });
   const [reconciledIds, setReconciledIds] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('kwb_reconciled') || '[]'); } catch { return []; }
+    try { return JSON.parse(localStorage.getItem(sk('reconciled')) || '[]'); } catch { return []; }
   });
   const [dismissedBank, setDismissedBank] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('kwb_dismissed_bank') || '[]'); } catch { return []; }
+    try { return JSON.parse(localStorage.getItem(sk('dismissed_bank')) || '[]'); } catch { return []; }
   });
 
-  // Save to localStorage whenever data changes
-  useEffect(() => { try { localStorage.setItem('kwb_income', JSON.stringify(income)); } catch {} }, [income]);
-  useEffect(() => { try { localStorage.setItem('kwb_expenses', JSON.stringify(expenses)); } catch {} }, [expenses]);
-  useEffect(() => { try { localStorage.setItem('kwb_mileage', JSON.stringify(mileage)); } catch {} }, [mileage]);
-  useEffect(() => { try { localStorage.setItem('kwb_bankrows', JSON.stringify(bankRows)); } catch {} }, [bankRows]);
-  useEffect(() => { try { localStorage.setItem('kwb_reconciled', JSON.stringify(reconciledIds)); } catch {} }, [reconciledIds]);
-  useEffect(() => { try { localStorage.setItem('kwb_dismissed_bank', JSON.stringify(dismissedBank)); } catch {} }, [dismissedBank]);
+  // Save to localStorage whenever data changes (user-specific keys)
+  useEffect(() => { try { localStorage.setItem(sk('income'), JSON.stringify(income)); } catch {} }, [income]);
+  useEffect(() => { try { localStorage.setItem(sk('expenses'), JSON.stringify(expenses)); } catch {} }, [expenses]);
+  useEffect(() => { try { localStorage.setItem(sk('mileage'), JSON.stringify(mileage)); } catch {} }, [mileage]);
+  useEffect(() => { try { localStorage.setItem(sk('bankrows'), JSON.stringify(bankRows)); } catch {} }, [bankRows]);
+  useEffect(() => { try { localStorage.setItem(sk('reconciled'), JSON.stringify(reconciledIds)); } catch {} }, [reconciledIds]);
+  useEffect(() => { try { localStorage.setItem(sk('dismissed_bank'), JSON.stringify(dismissedBank)); } catch {} }, [dismissedBank]);
+
+  // Bank accounts management (user-specific)
+  const [accounts, setAccounts] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(sk('accounts')) || '[]');
+      if (saved.length === 0) return [{ id:'acct_default', name:'Main Account', type:'Checking' }];
+      return saved;
+    } catch { return [{ id:'acct_default', name:'Main Account', type:'Checking' }]; }
+  });
+  const [selectedAccount, setSelectedAccount] = useState('all');
+  const [importAccount, setImportAccount] = useState(accounts[0]?.id || 'acct_default');
+  const [showAcctMgr, setShowAcctMgr] = useState(false);
+  const [newAcctName, setNewAcctName] = useState('');
+  const [newAcctType, setNewAcctType] = useState('Checking');
+  useEffect(() => { try { localStorage.setItem(sk('accounts'), JSON.stringify(accounts)); } catch {} }, [accounts]);
   const [incSrc, setIncSrc] = useState(""); const [incCat, setIncCat] = useState("Primary job"); const [incAmt, setIncAmt] = useState("");
+  const [selectedIds, setSelectedIds] = useState([]); // for bulk delete
   const [expDate, setExpDate] = useState(now.toISOString().slice(0,10)); const [expDesc, setExpDesc] = useState(""); const [expCat, setExpCat] = useState("Housing"); const [expAmt, setExpAmt] = useState(""); const [expNotes, setExpNotes] = useState("");
   const [milDate, setMilDate] = useState(now.toISOString().slice(0,10)); const [milPurpose, setMilPurpose] = useState(""); const [milMiles, setMilMiles] = useState(""); const [milType, setMilType] = useState("Business");
 
   const key = `${year}-${month}`;
-  const mInc = income.filter(r => r.key === key);
-  const mExp = expenses.filter(r => r.key === key);
+  // Filter by month AND selected account (or all accounts)
+  const filterByAccount = (rows) => selectedAccount === 'all' ? rows : rows.filter(r => (r.account || 'acct_default') === selectedAccount);
+  const mInc = filterByAccount(income.filter(r => r.key === key));
+  const mExp = filterByAccount(expenses.filter(r => r.key === key));
   const mMil = mileage.filter(r => r.key === key);
   const totalInc = mInc.reduce((s,r) => s+r.amt, 0);
   const totalExp = mExp.reduce((s,r) => s+r.amt, 0);
@@ -2410,12 +2446,14 @@ function BudgetTracker() {
 
   const addIncome = () => {
     if (!incSrc || !incAmt) return;
-    setIncome(p => [...p, {id:Date.now(),key,src:incSrc,cat:incCat,amt:parseFloat(incAmt)}]);
+    const acctId = selectedAccount === 'all' ? (accounts[0]?.id || 'acct_default') : selectedAccount;
+    setIncome(p => [...p, {id:Date.now(),key,src:incSrc,cat:incCat,amt:parseFloat(incAmt), account: acctId}]);
     setIncSrc(""); setIncAmt("");
   };
   const addExpense = () => {
     if (!expDesc || !expAmt) return;
-    setExpenses(p => [...p, {id:Date.now(),key,date:expDate,desc:expDesc,cat:expCat,amt:parseFloat(expAmt),notes:expNotes}]);
+    const acctId = selectedAccount === 'all' ? (accounts[0]?.id || 'acct_default') : selectedAccount;
+    setExpenses(p => [...p, {id:Date.now(),key,date:expDate,desc:expDesc,cat:expCat,amt:parseFloat(expAmt),notes:expNotes, account: acctId}]);
     setExpDesc(""); setExpAmt(""); setExpNotes("");
   };
   const addMileage = () => {
@@ -2564,7 +2602,11 @@ function BudgetTracker() {
           <h2 style={{ fontFamily:'Lora,Georgia,serif', fontSize:'1.4rem', fontWeight:700, color:'#0D1F3C' }}>📒 Budget Tracker</h2>
           <p style={{ fontSize:'0.8rem', color:'#7A8BA8', marginTop:2 }}>Track income, expenses, mileage & import from your bank</p>
         </div>
-        <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+        <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
+          <select value={selectedAccount} onChange={e=>setSelectedAccount(e.target.value)} style={{...selSt, width:'auto', borderColor: selectedAccount !== 'all' ? '#C9A84C' : '#E2EAF2', background: selectedAccount !== 'all' ? '#FDF7E8' : '#fff'}}>
+            <option value="all">All accounts</option>
+            {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+          </select>
           <select value={month} onChange={e=>setMonth(parseInt(e.target.value))} style={{...selSt, width:'auto'}}>
             {MONTHS_LIST.map((m,i) => <option key={i} value={i}>{m}</option>)}
           </select>
@@ -2603,18 +2645,59 @@ function BudgetTracker() {
             </div>
           </div>
           <div className="card" style={{ overflow:'hidden' }}>
-            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.85rem' }}>
-              <thead><tr style={{ borderBottom:'1px solid #E2EAF2' }}>{['Source','Category','Amount',''].map(h=><th key={h} style={{ padding:'10px 12px', fontWeight:700, fontSize:'0.72rem', color:'#7A8BA8', textTransform:'uppercase', textAlign:'left' }}>{h}</th>)}</tr></thead>
-              <tbody>
-                {mInc.length === 0 && <tr><td colSpan={4} style={{ padding:'1.5rem', textAlign:'center', color:'#7A8BA8', fontSize:'0.85rem' }}>No income added for this month</td></tr>}
-                {mInc.map(r => <tr key={r.id} style={{ borderBottom:'1px solid #F4F6FA' }}>
-                  <td style={{ padding:'10px 12px', color:'#0D1F3C' }}>{r.src}</td>
-                  <td style={{ padding:'10px 12px' }}><span style={{ background:'#EBF6F1', color:'#1B4D3C', padding:'2px 8px', borderRadius:6, fontSize:'0.72rem', fontWeight:700 }}>{r.cat}</span></td>
-                  <td style={{ padding:'10px 12px', fontWeight:700, color:'#1B4D3C' }}>{fmt(r.amt)}</td>
-                  <td style={{ padding:'10px 12px' }}><button onClick={()=>setIncome(p=>p.filter(x=>x.id!==r.id))} style={{ background:'none', border:'none', cursor:'pointer', color:'#7A8BA8', fontSize:16 }}>🗑</button></td>
-                </tr>)}
-              </tbody>
-            </table>
+            {(() => {
+              const visibleIds = mInc.map(r => r.id);
+              const selectedHere = selectedIds.filter(id => visibleIds.includes(id));
+              const allSelected = visibleIds.length > 0 && selectedHere.length === visibleIds.length;
+              const someSelected = selectedHere.length > 0;
+              return (
+                <>
+                  {someSelected && (
+                    <div style={{ background:'#FDF7E8', padding:'10px 14px', borderBottom:'1px solid #E8C97A', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                      <span style={{ fontSize:'0.85rem', fontWeight:700, color:'#8B6914' }}>{selectedHere.length} selected</span>
+                      <div style={{ display:'flex', gap:6 }}>
+                        <button onClick={()=>setSelectedIds(prev => prev.filter(id => !visibleIds.includes(id)))} style={{ padding:'5px 10px', borderRadius:6, fontSize:'0.78rem', fontWeight:600, background:'#fff', color:'#0D1F3C', border:'1px solid #E2EAF2', cursor:'pointer' }}>Clear</button>
+                        <button onClick={()=>{
+                          if (confirm(`Delete ${selectedHere.length} income entries?`)) {
+                            setIncome(p => p.filter(r => !selectedHere.includes(r.id)));
+                            setSelectedIds(prev => prev.filter(id => !selectedHere.includes(id)));
+                          }
+                        }} style={{ padding:'5px 12px', borderRadius:6, fontSize:'0.78rem', fontWeight:700, background:'#B53232', color:'#fff', border:'none', cursor:'pointer' }}>🗑 Delete selected</button>
+                      </div>
+                    </div>
+                  )}
+                  <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.85rem' }}>
+                    <thead><tr style={{ borderBottom:'1px solid #E2EAF2' }}>
+                      <th style={{ padding:'10px 8px 10px 14px', width:30 }}>
+                        <input type="checkbox" checked={allSelected} onChange={e=>{
+                          if (e.target.checked) setSelectedIds(prev => [...new Set([...prev, ...visibleIds])]);
+                          else setSelectedIds(prev => prev.filter(id => !visibleIds.includes(id)));
+                        }} />
+                      </th>
+                      {['Source','Category','Amount',''].map(h=><th key={h} style={{ padding:'10px 12px', fontWeight:700, fontSize:'0.72rem', color:'#7A8BA8', textTransform:'uppercase', textAlign:'left' }}>{h}</th>)}
+                    </tr></thead>
+                    <tbody>
+                      {mInc.length === 0 && <tr><td colSpan={5} style={{ padding:'1.5rem', textAlign:'center', color:'#7A8BA8', fontSize:'0.85rem' }}>No income added for this month</td></tr>}
+                      {mInc.map(r => {
+                        const isChecked = selectedIds.includes(r.id);
+                        return <tr key={r.id} style={{ borderBottom:'1px solid #F4F6FA', background: isChecked ? '#FDF7E8' : 'transparent' }}>
+                          <td style={{ padding:'10px 8px 10px 14px' }}>
+                            <input type="checkbox" checked={isChecked} onChange={e=>{
+                              if (e.target.checked) setSelectedIds(prev => [...prev, r.id]);
+                              else setSelectedIds(prev => prev.filter(id => id !== r.id));
+                            }} />
+                          </td>
+                          <td style={{ padding:'10px 12px', color:'#0D1F3C' }}>{r.src}</td>
+                          <td style={{ padding:'10px 12px' }}><span style={{ background:'#EBF6F1', color:'#1B4D3C', padding:'2px 8px', borderRadius:6, fontSize:'0.72rem', fontWeight:700 }}>{r.cat}</span></td>
+                          <td style={{ padding:'10px 12px', fontWeight:700, color:'#1B4D3C' }}>{fmt(r.amt)}</td>
+                          <td style={{ padding:'10px 12px' }}><button onClick={()=>setIncome(p=>p.filter(x=>x.id!==r.id))} style={{ background:'none', border:'none', cursor:'pointer', color:'#7A8BA8', fontSize:16 }}>🗑</button></td>
+                        </tr>;
+                      })}
+                    </tbody>
+                  </table>
+                </>
+              );
+            })()}
           </div>
         </div>
       )}
@@ -2635,20 +2718,62 @@ function BudgetTracker() {
             </div>
           </div>
           <div className="card" style={{ overflow:'hidden' }}>
-            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.85rem' }}>
-              <thead><tr style={{ borderBottom:'1px solid #E2EAF2' }}>{['Date','Description','Category','Amount','Notes',''].map(h=><th key={h} style={{ padding:'10px 12px', fontWeight:700, fontSize:'0.72rem', color:'#7A8BA8', textTransform:'uppercase', textAlign:'left' }}>{h}</th>)}</tr></thead>
-              <tbody>
-                {mExp.length === 0 && <tr><td colSpan={6} style={{ padding:'1.5rem', textAlign:'center', color:'#7A8BA8', fontSize:'0.85rem' }}>No expenses added for this month</td></tr>}
-                {mExp.map(r => <tr key={r.id} style={{ borderBottom:'1px solid #F4F6FA' }}>
-                  <td style={{ padding:'10px 12px', color:'#7A8BA8', fontSize:'0.8rem' }}>{r.date||'—'}</td>
-                  <td style={{ padding:'10px 12px', color:'#0D1F3C' }}>{r.desc}</td>
-                  <td style={{ padding:'10px 12px' }}><span style={{ background:'#FFF3F3', color:'#B53232', padding:'2px 8px', borderRadius:6, fontSize:'0.72rem', fontWeight:700 }}>{r.cat}</span></td>
-                  <td style={{ padding:'10px 12px', fontWeight:700, color:'#B53232' }}>{fmt(r.amt)}</td>
-                  <td style={{ padding:'10px 12px', color:'#7A8BA8', fontSize:'0.8rem' }}>{r.notes||'—'}</td>
-                  <td style={{ padding:'10px 12px' }}><button onClick={()=>setExpenses(p=>p.filter(x=>x.id!==r.id))} style={{ background:'none', border:'none', cursor:'pointer', color:'#7A8BA8', fontSize:16 }}>🗑</button></td>
-                </tr>)}
-              </tbody>
-            </table>
+            {(() => {
+              const visibleIds = mExp.map(r => r.id);
+              const selectedHere = selectedIds.filter(id => visibleIds.includes(id));
+              const allSelected = visibleIds.length > 0 && selectedHere.length === visibleIds.length;
+              const someSelected = selectedHere.length > 0;
+              return (
+                <>
+                  {someSelected && (
+                    <div style={{ background:'#FDF7E8', padding:'10px 14px', borderBottom:'1px solid #E8C97A', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                      <span style={{ fontSize:'0.85rem', fontWeight:700, color:'#8B6914' }}>{selectedHere.length} selected</span>
+                      <div style={{ display:'flex', gap:6 }}>
+                        <button onClick={()=>setSelectedIds(prev => prev.filter(id => !visibleIds.includes(id)))} style={{ padding:'5px 10px', borderRadius:6, fontSize:'0.78rem', fontWeight:600, background:'#fff', color:'#0D1F3C', border:'1px solid #E2EAF2', cursor:'pointer' }}>Clear</button>
+                        <button onClick={()=>{
+                          if (confirm(`Delete ${selectedHere.length} expense entries?`)) {
+                            setExpenses(p => p.filter(r => !selectedHere.includes(r.id)));
+                            setSelectedIds(prev => prev.filter(id => !selectedHere.includes(id)));
+                          }
+                        }} style={{ padding:'5px 12px', borderRadius:6, fontSize:'0.78rem', fontWeight:700, background:'#B53232', color:'#fff', border:'none', cursor:'pointer' }}>🗑 Delete selected</button>
+                      </div>
+                    </div>
+                  )}
+                  <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.85rem' }}>
+                    <thead><tr style={{ borderBottom:'1px solid #E2EAF2' }}>
+                      <th style={{ padding:'10px 8px 10px 14px', width:30 }}>
+                        <input type="checkbox" checked={allSelected} onChange={e=>{
+                          if (e.target.checked) setSelectedIds(prev => [...new Set([...prev, ...visibleIds])]);
+                          else setSelectedIds(prev => prev.filter(id => !visibleIds.includes(id)));
+                        }} />
+                      </th>
+                      {['Date','Description','Category','Account','Amount','Notes',''].map(h=><th key={h} style={{ padding:'10px 12px', fontWeight:700, fontSize:'0.72rem', color:'#7A8BA8', textTransform:'uppercase', textAlign:'left' }}>{h}</th>)}
+                    </tr></thead>
+                    <tbody>
+                      {mExp.length === 0 && <tr><td colSpan={8} style={{ padding:'1.5rem', textAlign:'center', color:'#7A8BA8', fontSize:'0.85rem' }}>No expenses added for this month</td></tr>}
+                      {mExp.map(r => {
+                        const isChecked = selectedIds.includes(r.id);
+                        return <tr key={r.id} style={{ borderBottom:'1px solid #F4F6FA', background: isChecked ? '#FDF7E8' : 'transparent' }}>
+                          <td style={{ padding:'10px 8px 10px 14px' }}>
+                            <input type="checkbox" checked={isChecked} onChange={e=>{
+                              if (e.target.checked) setSelectedIds(prev => [...prev, r.id]);
+                              else setSelectedIds(prev => prev.filter(id => id !== r.id));
+                            }} />
+                          </td>
+                          <td style={{ padding:'10px 12px', color:'#7A8BA8', fontSize:'0.8rem' }}>{r.date||'—'}</td>
+                          <td style={{ padding:'10px 12px', color:'#0D1F3C' }}>{r.desc}</td>
+                          <td style={{ padding:'10px 12px' }}><span style={{ background:'#FFF3F3', color:'#B53232', padding:'2px 8px', borderRadius:6, fontSize:'0.72rem', fontWeight:700 }}>{r.cat}</span></td>
+                          <td style={{ padding:'10px 12px', color:'#7A8BA8', fontSize:'0.78rem' }}>{accounts.find(a=>a.id===(r.account||'acct_default'))?.name || 'Main'}</td>
+                          <td style={{ padding:'10px 12px', fontWeight:700, color:'#B53232' }}>{fmt(r.amt)}</td>
+                          <td style={{ padding:'10px 12px', color:'#7A8BA8', fontSize:'0.8rem' }}>{r.notes||'—'}</td>
+                          <td style={{ padding:'10px 12px' }}><button onClick={()=>setExpenses(p=>p.filter(x=>x.id!==r.id))} style={{ background:'none', border:'none', cursor:'pointer', color:'#7A8BA8', fontSize:16 }}>🗑</button></td>
+                        </tr>;
+                      })}
+                    </tbody>
+                  </table>
+                </>
+              );
+            })()}
           </div>
         </div>
       )}
@@ -2722,10 +2847,10 @@ function BudgetTracker() {
           const amt = Math.abs(parseFloat(br.amt) || 0);
           if (amt === 0) return;
           if (asIncome) {
-            setIncome(prev => [...prev, { id: Date.now()+Math.random(), key: rowKey, date, src: br.desc, cat: 'Other income', amt, m, y }]);
+            setIncome(prev => [...prev, { id: Date.now()+Math.random(), key: rowKey, date, src: br.desc, cat: 'Other income', amt, m, y, account: importAccount }]);
           } else {
             const cat = customCat || guessCategory(br.desc, false);
-            setExpenses(prev => [...prev, { id: Date.now()+Math.random(), key: rowKey, date, desc: br.desc, cat, amt, m, y }]);
+            setExpenses(prev => [...prev, { id: Date.now()+Math.random(), key: rowKey, date, desc: br.desc, cat, amt, m, y, account: importAccount }]);
           }
           setBankRows(prev => prev.map(r => r.id === br.id ? { ...r, imported: true } : r));
         };
@@ -2742,10 +2867,10 @@ function BudgetTracker() {
             const amt = Math.abs(parseFloat(r.amt) || 0);
             if (amt === 0) return r;
             if (parseFloat(r.amt) > 0) {
-              newIncomes.push({ id: Date.now()+Math.random()+Math.random(), key: rowKey, date, src: r.desc, cat: 'Other income', amt, m, y });
+              newIncomes.push({ id: Date.now()+Math.random()+Math.random(), key: rowKey, date, src: r.desc, cat: 'Other income', amt, m, y, account: importAccount });
             } else {
               const cat = r.customCat || guessCategory(r.desc, false);
-              newExpenses.push({ id: Date.now()+Math.random()+Math.random(), key: rowKey, date, desc: r.desc, cat, amt, m, y });
+              newExpenses.push({ id: Date.now()+Math.random()+Math.random(), key: rowKey, date, desc: r.desc, cat, amt, m, y, account: importAccount });
             }
             return { ...r, imported: true };
           });
@@ -2763,10 +2888,50 @@ function BudgetTracker() {
                 {bankRows.length > 0 && <button onClick={()=>{ if(confirm('Clear all bank rows? (Imported transactions will stay in your records.)')) { setBankRows([]); setDismissedBank([]); } }} style={{ background:'#FDF7E8', color:'#B53232', border:'none', padding:'6px 12px', borderRadius:6, fontSize:'0.75rem', fontWeight:700, cursor:'pointer' }}>🗑 Clear</button>}
               </div>
               <div style={{ fontSize:'0.78rem', color:'#7A8BA8', marginBottom:10 }}>Skip manual entry! Upload your bank statement and import transactions with auto-categorization.</div>
+
+              <div style={{ background:'#FAFAF6', padding:10, borderRadius:8, marginBottom:10 }}>
+                <div style={{ fontSize:'0.75rem', fontWeight:700, color:'#0D1F3C', marginBottom:6 }}>Which account is this CSV from?</div>
+                <div style={{ display:'flex', gap:6, alignItems:'center', flexWrap:'wrap' }}>
+                  <select value={importAccount} onChange={e=>setImportAccount(e.target.value)} style={{ flex:'1 1 200px', padding:'7px 10px', borderRadius:6, border:'1px solid #E2EAF2', fontSize:'0.85rem', fontWeight:600, color:'#0D1F3C', background:'#fff' }}>
+                    {accounts.map(a => <option key={a.id} value={a.id}>{a.name} ({a.type})</option>)}
+                  </select>
+                  <button onClick={()=>setShowAcctMgr(!showAcctMgr)} style={{ padding:'7px 12px', borderRadius:6, fontSize:'0.78rem', fontWeight:700, background:'#fff', color:'#0D1F3C', border:'1px solid #E2EAF2', cursor:'pointer' }}>⚙️ Manage</button>
+                </div>
+                {showAcctMgr && (
+                  <div style={{ marginTop:10, padding:10, background:'#fff', borderRadius:6, border:'1px solid #E2EAF2' }}>
+                    <div style={{ fontSize:'0.78rem', fontWeight:700, color:'#0D1F3C', marginBottom:6 }}>Your accounts ({accounts.length}):</div>
+                    {accounts.map(a => (
+                      <div key={a.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'6px 0', borderBottom:'1px solid #F4F6FA' }}>
+                        <div style={{ fontSize:'0.82rem', color:'#0D1F3C' }}><strong>{a.name}</strong> <span style={{ color:'#7A8BA8', fontSize:'0.75rem' }}>· {a.type}</span></div>
+                        {accounts.length > 1 && <button onClick={()=>{
+                          if (confirm(`Delete account "${a.name}"? Transactions will remain but be unassigned.`)) {
+                            setAccounts(prev => prev.filter(x => x.id !== a.id));
+                            if (importAccount === a.id) setImportAccount(accounts.find(x=>x.id!==a.id)?.id || 'acct_default');
+                          }
+                        }} style={{ background:'none', border:'none', cursor:'pointer', fontSize:14, color:'#B53232' }}>🗑</button>}
+                      </div>
+                    ))}
+                    <div style={{ display:'flex', gap:6, marginTop:10 }}>
+                      <input value={newAcctName} onChange={e=>setNewAcctName(e.target.value)} placeholder="e.g., Chase Checking" style={{ flex:1, padding:'6px 10px', borderRadius:6, border:'1px solid #E2EAF2', fontSize:'0.82rem' }} />
+                      <select value={newAcctType} onChange={e=>setNewAcctType(e.target.value)} style={{ padding:'6px 10px', borderRadius:6, border:'1px solid #E2EAF2', fontSize:'0.82rem' }}>
+                        {['Checking','Savings','Credit Card','Cash','Investment','Loan','Other'].map(t => <option key={t}>{t}</option>)}
+                      </select>
+                      <button onClick={()=>{
+                        if (!newAcctName.trim()) return;
+                        const id = 'acct_' + Date.now();
+                        setAccounts(prev => [...prev, { id, name: newAcctName.trim(), type: newAcctType }]);
+                        setImportAccount(id);
+                        setNewAcctName('');
+                      }} style={{ padding:'6px 12px', borderRadius:6, fontSize:'0.78rem', fontWeight:700, background:'#0D1F3C', color:'#fff', border:'none', cursor:'pointer' }}>+ Add</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <label style={{ display:'block', border:'1.5px dashed #C9A84C', borderRadius:10, padding:'1.2rem', textAlign:'center', cursor:'pointer', background:'#FDF7E8' }}>
                 <div style={{ fontSize:'1.8rem', marginBottom:6 }}>📥</div>
                 <div style={{ fontSize:'0.9rem', color:'#8B6914', fontWeight:600 }}>Click to upload your bank CSV</div>
-                <div style={{ fontSize:'0.72rem', color:'#8B6914', marginTop:4 }}>Columns: Date, Description, Amount (negative = expense)</div>
+                <div style={{ fontSize:'0.72rem', color:'#8B6914', marginTop:4 }}>Will tag as: <strong>{accounts.find(a=>a.id===importAccount)?.name || 'Main Account'}</strong></div>
                 <input type="file" accept=".csv" style={{ display:'none' }} onChange={parseCSV} />
               </label>
             </div>
