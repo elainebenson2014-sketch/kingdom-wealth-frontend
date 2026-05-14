@@ -2428,16 +2428,29 @@ function BudgetTracker() {
     const file = e.target.files[0]; if (!file) return;
     const reader = new FileReader();
     reader.onload = ev => {
-      const lines = ev.target.result.split('\n').filter(l => l.trim());
-      // Skip header row and parse remaining lines
-      const newRows = lines.slice(1).map((l, idx) => {
+      const allLines = ev.target.result.split('\n').filter(l => l.trim());
+      if (allLines.length < 2) return;
+
+      // Parse header to find column indexes
+      const header = allLines[0].split(',').map(x => x.replace(/"/g,'').trim().toLowerCase());
+      const findCol = (names) => {
+        for (const n of names) {
+          const idx = header.findIndex(h => h.includes(n));
+          if (idx >= 0) return idx;
+        }
+        return -1;
+      };
+      const dateIdx = findCol(['date', 'posted', 'transaction date']);
+      const descIdx = findCol(['description', 'desc', 'payee', 'merchant', 'memo', 'name', 'details']);
+      const amtIdx = findCol(['amount', 'value']);
+      const debitIdx = findCol(['debit', 'withdrawal', 'withdraw']);
+      const creditIdx = findCol(['credit', 'deposit']);
+
+      const newRows = allLines.slice(1).map((l, idx) => {
         const c = l.split(',').map(x => x.replace(/"/g,'').trim());
-        // Try multiple column configurations: Date,Desc,Amount OR Date,Desc,Debit,Credit
-        let amt = 0;
-        if (c[2] && !isNaN(parseFloat(c[2]))) amt = parseFloat(c[2]);
-        else if (c[3] && !isNaN(parseFloat(c[3]))) amt = parseFloat(c[3]);
-        // Try to normalize date to YYYY-MM-DD if it's in MM/DD/YYYY
-        let date = c[0] || '';
+
+        // Get date
+        let date = (dateIdx >= 0 ? c[dateIdx] : c[0]) || '';
         if (date.includes('/')) {
           const parts = date.split('/');
           if (parts.length === 3) {
@@ -2448,16 +2461,44 @@ function BudgetTracker() {
             date = `${yr}-${mo}-${dy}`;
           }
         }
+
+        // Get description - try the detected column, then fall back to text columns
+        let desc = (descIdx >= 0 ? c[descIdx] : '') || '';
+        if (!desc) {
+          // Fall back: find first non-empty, non-numeric column
+          for (let i = 0; i < c.length; i++) {
+            if (i === dateIdx || i === amtIdx || i === debitIdx || i === creditIdx) continue;
+            if (c[i] && isNaN(parseFloat(c[i]))) { desc = c[i]; break; }
+          }
+        }
+        if (!desc) desc = 'Imported transaction';
+
+        // Get amount - handle Amount column OR Debit/Credit columns
+        let amt = 0;
+        if (amtIdx >= 0 && c[amtIdx]) {
+          amt = parseFloat(c[amtIdx].replace(/[$,]/g,'')) || 0;
+        } else if (debitIdx >= 0 || creditIdx >= 0) {
+          const debit = debitIdx >= 0 ? (parseFloat((c[debitIdx]||'').replace(/[$,]/g,'')) || 0) : 0;
+          const credit = creditIdx >= 0 ? (parseFloat((c[creditIdx]||'').replace(/[$,]/g,'')) || 0) : 0;
+          amt = credit - debit;
+        } else {
+          // Last resort: scan for any numeric column
+          for (let i = c.length - 1; i >= 0; i--) {
+            const n = parseFloat((c[i]||'').replace(/[$,]/g,''));
+            if (!isNaN(n) && n !== 0) { amt = n; break; }
+          }
+        }
+
         return {
           id: 'bank_' + Date.now() + '_' + idx + '_' + Math.random().toString(36).slice(2,8),
           date: date,
-          desc: c[1] || '',
+          desc: desc,
           amt: amt
         };
-      }).filter(r => r.desc && r.amt !== 0);
-      // Append to existing bank rows (don't replace)
+      }).filter(r => r.amt !== 0);
+
       setBankRows(prev => [...prev, ...newRows]);
-      e.target.value = ''; // reset input so same file can be re-uploaded
+      e.target.value = '';
     };
     reader.readAsText(file);
   };
