@@ -2353,14 +2353,27 @@ function BudgetTracker() {
   const [tab, setTab] = useState("income");
 
   // Load from localStorage on mount
+  const ensureKey = (r) => {
+    if (!r) return r;
+    if (typeof r.key === 'string') return r;
+    // Try to derive key from date or m/y fields
+    if (typeof r.m === 'number' && typeof r.y === 'number') return { ...r, key: `${r.y}-${r.m}` };
+    if (r.date) {
+      try {
+        const dt = new Date(r.date);
+        if (!isNaN(dt.getTime())) return { ...r, key: `${dt.getFullYear()}-${dt.getMonth()}`, m: dt.getMonth(), y: dt.getFullYear() };
+      } catch {}
+    }
+    return { ...r, key: `${now.getFullYear()}-${now.getMonth()}` };
+  };
   const [income, setIncome] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('kwb_income') || '[]'); } catch { return []; }
+    try { return JSON.parse(localStorage.getItem('kwb_income') || '[]').map(ensureKey); } catch { return []; }
   });
   const [expenses, setExpenses] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('kwb_expenses') || '[]'); } catch { return []; }
+    try { return JSON.parse(localStorage.getItem('kwb_expenses') || '[]').map(ensureKey); } catch { return []; }
   });
   const [mileage, setMileage] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('kwb_mileage') || '[]'); } catch { return []; }
+    try { return JSON.parse(localStorage.getItem('kwb_mileage') || '[]').map(ensureKey); } catch { return []; }
   });
   const [bankRows, setBankRows] = useState(() => {
     try { return JSON.parse(localStorage.getItem('kwb_bankrows') || '[]'); } catch { return []; }
@@ -2477,19 +2490,24 @@ function BudgetTracker() {
     let aInc=0,aExp=0,aMi=0,aMiVal=0,aGiving=0;
     const monthly=[];
     const catTotals={};
+    const yearPrefix = `${year}-`;
+    // Filter out items without keys (legacy/imported data)
+    const safeIncome = income.filter(r => r && typeof r.key === 'string');
+    const safeExpenses = expenses.filter(r => r && typeof r.key === 'string');
+    const safeMileage = mileage.filter(r => r && typeof r.key === 'string');
     for(let m=0;m<12;m++){
       const k=`${year}-${m}`;
-      const mI=income.filter(r=>r.key===k).reduce((s,r)=>s+r.amt,0);
-      const mE=expenses.filter(r=>r.key===k).reduce((s,r)=>s+r.amt,0);
-      const mMi2=mileage.filter(r=>r.key===k).reduce((s,r)=>s+r.miles,0);
-      const mMiV=mileage.filter(r=>r.key===k).reduce((s,r)=>s+(r.miles*(MILEAGE_RATES[r.type]||0)),0);
+      const mI=safeIncome.filter(r=>r.key===k).reduce((s,r)=>s+(parseFloat(r.amt)||0),0);
+      const mE=safeExpenses.filter(r=>r.key===k).reduce((s,r)=>s+(parseFloat(r.amt)||0),0);
+      const mMi2=safeMileage.filter(r=>r.key===k).reduce((s,r)=>s+(parseFloat(r.miles)||0),0);
+      const mMiV=safeMileage.filter(r=>r.key===k).reduce((s,r)=>s+((parseFloat(r.miles)||0)*(MILEAGE_RATES[r.type]||0)),0);
       aInc+=mI; aExp+=mE; aMi+=mMi2; aMiVal+=mMiV;
       monthly.push({m:MONTHS_LIST[m].slice(0,3),inc:mI,exp:mE});
-      expenses.filter(r=>r.key===k).forEach(r=>{catTotals[r.cat]=(catTotals[r.cat]||0)+r.amt;});
+      safeExpenses.filter(r=>r.key===k).forEach(r=>{catTotals[r.cat]=(catTotals[r.cat]||0)+(parseFloat(r.amt)||0);});
     }
-    aGiving=expenses.filter(r=>r.key.startsWith(`${year}-`)).filter(r=>r.cat==='Giving / tithe').reduce((s,r)=>s+r.amt,0);
-    const bizMi=mileage.filter(r=>r.key.startsWith(`${year}-`)&&r.type==='Business').reduce((s,r)=>s+r.miles,0);
-    const medMi=mileage.filter(r=>r.key.startsWith(`${year}-`)&&(r.type==='Medical'||r.type==='Charity')).reduce((s,r)=>s+r.miles,0);
+    aGiving=safeExpenses.filter(r=>r.key.startsWith(yearPrefix)).filter(r=>r.cat==='Giving / tithe').reduce((s,r)=>s+(parseFloat(r.amt)||0),0);
+    const bizMi=safeMileage.filter(r=>r.key.startsWith(yearPrefix)&&r.type==='Business').reduce((s,r)=>s+(parseFloat(r.miles)||0),0);
+    const medMi=safeMileage.filter(r=>r.key.startsWith(yearPrefix)&&(r.type==='Medical'||r.type==='Charity')).reduce((s,r)=>s+(parseFloat(r.miles)||0),0);
     return {aInc,aExp,aMi,aMiVal,aGiving,monthly,catTotals,bizMi,medMi,surplus:aInc-aExp};
   };
 
