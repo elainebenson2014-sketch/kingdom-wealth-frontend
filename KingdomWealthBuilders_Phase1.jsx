@@ -2453,6 +2453,8 @@ function BudgetTracker({ user }) {
   const [expView, setExpView] = useState('list');
   const [expandedCats, setExpandedCats] = useState([]);
   const [filterCat, setFilterCat] = useState('all');
+  const [sortField, setSortField] = useState('date');
+  const [sortDir, setSortDir] = useState('desc');
   const [transfers, setTransfers] = useState(() => {
     try { return JSON.parse(localStorage.getItem(sk('transfers')) || '[]'); } catch { return []; }
   });
@@ -2677,16 +2679,44 @@ function BudgetTracker({ user }) {
           </div>
           <div className="card" style={{ overflow:'hidden' }}>
             {(() => {
-              const visibleIds = mInc.map(r => r.id);
+              // Apply sort to income
+              const sortMul = sortDir === 'asc' ? 1 : -1;
+              const sortedInc = [...mInc].sort((a, b) => {
+                let av, bv;
+                if (sortField === 'desc') { av = (a.src || '').toLowerCase(); bv = (b.src || '').toLowerCase(); return av.localeCompare(bv) * sortMul; }
+                if (sortField === 'cat') { av = a.cat || ''; bv = b.cat || ''; return av.localeCompare(bv) * sortMul; }
+                if (sortField === 'amt') { av = parseFloat(a.amt) || 0; bv = parseFloat(b.amt) || 0; return (av - bv) * sortMul; }
+                return 0;
+              });
+              const visibleIds = sortedInc.map(r => r.id);
               const selectedHere = selectedIds.filter(id => visibleIds.includes(id));
               const allSelected = visibleIds.length > 0 && selectedHere.length === visibleIds.length;
               const someSelected = selectedHere.length > 0;
+              const handleSort = (field) => {
+                if (sortField === field) setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+                else { setSortField(field); setSortDir('asc'); }
+              };
+              const sortIcon = (field) => sortField !== field ? '⇅' : (sortDir === 'asc' ? '↑' : '↓');
+              const headerStyle = (field) => ({ padding:'10px 12px', fontWeight:700, fontSize:'0.72rem', color: sortField===field?'#0D1F3C':'#7A8BA8', textTransform:'uppercase', textAlign:'left', cursor:'pointer', userSelect:'none' });
               return (
                 <>
                   {someSelected && (
-                    <div style={{ background:'#FDF7E8', padding:'10px 14px', borderBottom:'1px solid #E8C97A', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                    <div style={{ background:'#FDF7E8', padding:'10px 14px', borderBottom:'1px solid #E8C97A', display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:8 }}>
                       <span style={{ fontSize:'0.85rem', fontWeight:700, color:'#8B6914' }}>{selectedHere.length} selected</span>
-                      <div style={{ display:'flex', gap:6 }}>
+                      <div style={{ display:'flex', gap:6, alignItems:'center', flexWrap:'wrap' }}>
+                        <button onClick={()=>{
+                          if (confirm(`Move ${selectedHere.length} items to Transfers? (They won't count as income anymore.)`)) {
+                            const itemsToMove = mInc.filter(r => selectedHere.includes(r.id));
+                            const newTransfers = itemsToMove.map(r => ({
+                              id: 'xfer_' + Date.now() + '_' + Math.random(),
+                              key: r.key, date: r.date || '', desc: r.src, amt: r.amt, m: r.m, y: r.y,
+                              direction: 'in', account: r.account || 'acct_default',
+                            }));
+                            setTransfers(prev => [...prev, ...newTransfers]);
+                            setIncome(prev => prev.filter(r => !selectedHere.includes(r.id)));
+                            setSelectedIds(prev => prev.filter(id => !selectedHere.includes(id)));
+                          }
+                        }} style={{ padding:'5px 10px', borderRadius:6, fontSize:'0.78rem', fontWeight:700, background:'#FDF7E8', color:'#8B6914', border:'1px solid #C9A84C', cursor:'pointer' }}>🔄 Mark as Transfer</button>
                         <button onClick={()=>setSelectedIds(prev => prev.filter(id => !visibleIds.includes(id)))} style={{ padding:'5px 10px', borderRadius:6, fontSize:'0.78rem', fontWeight:600, background:'#fff', color:'#0D1F3C', border:'1px solid #E2EAF2', cursor:'pointer' }}>Clear</button>
                         <button onClick={()=>{
                           if (confirm(`Delete ${selectedHere.length} income entries?`)) {
@@ -2705,11 +2735,14 @@ function BudgetTracker({ user }) {
                           else setSelectedIds(prev => prev.filter(id => !visibleIds.includes(id)));
                         }} />
                       </th>
-                      {['Source','Category','Amount',''].map(h=><th key={h} style={{ padding:'10px 12px', fontWeight:700, fontSize:'0.72rem', color:'#7A8BA8', textTransform:'uppercase', textAlign:'left' }}>{h}</th>)}
+                      <th style={headerStyle('desc')} onClick={()=>handleSort('desc')}>Source {sortIcon('desc')}</th>
+                      <th style={headerStyle('cat')} onClick={()=>handleSort('cat')}>Category {sortIcon('cat')}</th>
+                      <th style={headerStyle('amt')} onClick={()=>handleSort('amt')}>Amount {sortIcon('amt')}</th>
+                      <th></th>
                     </tr></thead>
                     <tbody>
-                      {mInc.length === 0 && <tr><td colSpan={5} style={{ padding:'1.5rem', textAlign:'center', color:'#7A8BA8', fontSize:'0.85rem' }}>No income added for this month</td></tr>}
-                      {mInc.map(r => {
+                      {sortedInc.length === 0 && <tr><td colSpan={5} style={{ padding:'1.5rem', textAlign:'center', color:'#7A8BA8', fontSize:'0.85rem' }}>No income added for this month</td></tr>}
+                      {sortedInc.map(r => {
                         const isChecked = selectedIds.includes(r.id);
                         return <tr key={r.id} style={{ borderBottom:'1px solid #F4F6FA', background: isChecked ? '#FDF7E8' : 'transparent' }}>
                           <td style={{ padding:'10px 8px 10px 14px' }}>
@@ -2821,17 +2854,57 @@ function BudgetTracker({ user }) {
           ) : (
           <div className="card" style={{ overflow:'hidden' }}>
             {(() => {
-              const filteredExp = filterCat === 'all' ? mExp : mExp.filter(r => (r.cat || 'Other') === filterCat);
+              const baseFiltered = filterCat === 'all' ? mExp : mExp.filter(r => (r.cat || 'Other') === filterCat);
+              // Apply sort
+              const sortMul = sortDir === 'asc' ? 1 : -1;
+              const filteredExp = [...baseFiltered].sort((a, b) => {
+                let av, bv;
+                if (sortField === 'date') { av = a.date || ''; bv = b.date || ''; return av.localeCompare(bv) * sortMul; }
+                if (sortField === 'desc') { av = (a.desc || '').toLowerCase(); bv = (b.desc || '').toLowerCase(); return av.localeCompare(bv) * sortMul; }
+                if (sortField === 'cat') { av = a.cat || ''; bv = b.cat || ''; return av.localeCompare(bv) * sortMul; }
+                if (sortField === 'amt') { av = parseFloat(a.amt) || 0; bv = parseFloat(b.amt) || 0; return (av - bv) * sortMul; }
+                if (sortField === 'account') { const an = accounts.find(x=>x.id===(a.account||'acct_default'))?.name || ''; const bn = accounts.find(x=>x.id===(b.account||'acct_default'))?.name || ''; return an.localeCompare(bn) * sortMul; }
+                return 0;
+              });
               const visibleIds = filteredExp.map(r => r.id);
               const selectedHere = selectedIds.filter(id => visibleIds.includes(id));
               const allSelected = visibleIds.length > 0 && selectedHere.length === visibleIds.length;
               const someSelected = selectedHere.length > 0;
+              const handleSort = (field) => {
+                if (sortField === field) setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+                else { setSortField(field); setSortDir('asc'); }
+              };
+              const sortIcon = (field) => sortField !== field ? '⇅' : (sortDir === 'asc' ? '↑' : '↓');
+              const headerStyle = (field) => ({ padding:'10px 12px', fontWeight:700, fontSize:'0.72rem', color: sortField===field?'#0D1F3C':'#7A8BA8', textTransform:'uppercase', textAlign:'left', cursor:'pointer', userSelect:'none' });
               return (
                 <>
                   {someSelected && (
-                    <div style={{ background:'#FDF7E8', padding:'10px 14px', borderBottom:'1px solid #E8C97A', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                    <div style={{ background:'#FDF7E8', padding:'10px 14px', borderBottom:'1px solid #E8C97A', display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:8 }}>
                       <span style={{ fontSize:'0.85rem', fontWeight:700, color:'#8B6914' }}>{selectedHere.length} selected</span>
-                      <div style={{ display:'flex', gap:6 }}>
+                      <div style={{ display:'flex', gap:6, alignItems:'center', flexWrap:'wrap' }}>
+                        <select onChange={(e) => {
+                          if (!e.target.value) return;
+                          if (confirm(`Change category to "${e.target.value}" for ${selectedHere.length} items?`)) {
+                            setExpenses(prev => prev.map(r => selectedHere.includes(r.id) ? { ...r, cat: e.target.value } : r));
+                          }
+                          e.target.value = '';
+                        }} style={{ padding:'5px 10px', borderRadius:6, fontSize:'0.78rem', fontWeight:600, background:'#fff', color:'#0D1F3C', border:'1px solid #C9A84C', cursor:'pointer' }} defaultValue="">
+                          <option value="">📂 Change category...</option>
+                          {EXPENSE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                        <button onClick={()=>{
+                          if (confirm(`Move ${selectedHere.length} items to Transfers? (They won't count as expenses anymore.)`)) {
+                            const itemsToMove = mExp.filter(r => selectedHere.includes(r.id));
+                            const newTransfers = itemsToMove.map(r => ({
+                              id: 'xfer_' + Date.now() + '_' + Math.random(),
+                              key: r.key, date: r.date, desc: r.desc, amt: r.amt, m: r.m, y: r.y,
+                              direction: 'out', account: r.account || 'acct_default',
+                            }));
+                            setTransfers(prev => [...prev, ...newTransfers]);
+                            setExpenses(prev => prev.filter(r => !selectedHere.includes(r.id)));
+                            setSelectedIds(prev => prev.filter(id => !selectedHere.includes(id)));
+                          }
+                        }} style={{ padding:'5px 10px', borderRadius:6, fontSize:'0.78rem', fontWeight:700, background:'#FDF7E8', color:'#8B6914', border:'1px solid #C9A84C', cursor:'pointer' }}>🔄 Mark as Transfer</button>
                         <button onClick={()=>setSelectedIds(prev => prev.filter(id => !visibleIds.includes(id)))} style={{ padding:'5px 10px', borderRadius:6, fontSize:'0.78rem', fontWeight:600, background:'#fff', color:'#0D1F3C', border:'1px solid #E2EAF2', cursor:'pointer' }}>Clear</button>
                         <button onClick={()=>{
                           if (confirm(`Delete ${selectedHere.length} expense entries?`)) {
@@ -2850,7 +2923,13 @@ function BudgetTracker({ user }) {
                           else setSelectedIds(prev => prev.filter(id => !visibleIds.includes(id)));
                         }} />
                       </th>
-                      {['Date','Description','Category','Account','Amount','Notes',''].map(h=><th key={h} style={{ padding:'10px 12px', fontWeight:700, fontSize:'0.72rem', color:'#7A8BA8', textTransform:'uppercase', textAlign:'left' }}>{h}</th>)}
+                      <th style={headerStyle('date')} onClick={()=>handleSort('date')}>Date {sortIcon('date')}</th>
+                      <th style={headerStyle('desc')} onClick={()=>handleSort('desc')}>Description {sortIcon('desc')}</th>
+                      <th style={headerStyle('cat')} onClick={()=>handleSort('cat')}>Category {sortIcon('cat')}</th>
+                      <th style={headerStyle('account')} onClick={()=>handleSort('account')}>Account {sortIcon('account')}</th>
+                      <th style={headerStyle('amt')} onClick={()=>handleSort('amt')}>Amount {sortIcon('amt')}</th>
+                      <th style={{ padding:'10px 12px', fontWeight:700, fontSize:'0.72rem', color:'#7A8BA8', textTransform:'uppercase', textAlign:'left' }}>Notes</th>
+                      <th></th>
                     </tr></thead>
                     <tbody>
                       {filteredExp.length === 0 && <tr><td colSpan={8} style={{ padding:'1.5rem', textAlign:'center', color:'#7A8BA8', fontSize:'0.85rem' }}>{filterCat === 'all' ? 'No expenses added for this month' : `No expenses in "${filterCat}"`}</td></tr>}
