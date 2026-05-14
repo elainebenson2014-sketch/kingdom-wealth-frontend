@@ -2362,12 +2362,23 @@ function BudgetTracker() {
   const [mileage, setMileage] = useState(() => {
     try { return JSON.parse(localStorage.getItem('kwb_mileage') || '[]'); } catch { return []; }
   });
-  const [bankRows, setBankRows] = useState([]);
+  const [bankRows, setBankRows] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('kwb_bankrows') || '[]'); } catch { return []; }
+  });
+  const [reconciledIds, setReconciledIds] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('kwb_reconciled') || '[]'); } catch { return []; }
+  });
+  const [dismissedBank, setDismissedBank] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('kwb_dismissed_bank') || '[]'); } catch { return []; }
+  });
 
   // Save to localStorage whenever data changes
   useEffect(() => { try { localStorage.setItem('kwb_income', JSON.stringify(income)); } catch {} }, [income]);
   useEffect(() => { try { localStorage.setItem('kwb_expenses', JSON.stringify(expenses)); } catch {} }, [expenses]);
   useEffect(() => { try { localStorage.setItem('kwb_mileage', JSON.stringify(mileage)); } catch {} }, [mileage]);
+  useEffect(() => { try { localStorage.setItem('kwb_bankrows', JSON.stringify(bankRows)); } catch {} }, [bankRows]);
+  useEffect(() => { try { localStorage.setItem('kwb_reconciled', JSON.stringify(reconciledIds)); } catch {} }, [reconciledIds]);
+  useEffect(() => { try { localStorage.setItem('kwb_dismissed_bank', JSON.stringify(dismissedBank)); } catch {} }, [dismissedBank]);
   const [incSrc, setIncSrc] = useState(""); const [incCat, setIncCat] = useState("Primary job"); const [incAmt, setIncAmt] = useState("");
   const [expDate, setExpDate] = useState(now.toISOString().slice(0,10)); const [expDesc, setExpDesc] = useState(""); const [expCat, setExpCat] = useState("Housing"); const [expAmt, setExpAmt] = useState(""); const [expNotes, setExpNotes] = useState("");
   const [milDate, setMilDate] = useState(now.toISOString().slice(0,10)); const [milPurpose, setMilPurpose] = useState(""); const [milMiles, setMilMiles] = useState(""); const [milType, setMilType] = useState("Business");
@@ -2405,8 +2416,35 @@ function BudgetTracker() {
     const reader = new FileReader();
     reader.onload = ev => {
       const lines = ev.target.result.split('\n').filter(l => l.trim());
-      const rows = lines.slice(1).map(l => { const c = l.split(',').map(x => x.replace(/"/g,'').trim()); return {date:c[0]||'',desc:c[1]||'',amt:parseFloat(c[2])||parseFloat(c[3])||0}; }).filter(r => r.desc);
-      setBankRows(rows);
+      // Skip header row and parse remaining lines
+      const newRows = lines.slice(1).map((l, idx) => {
+        const c = l.split(',').map(x => x.replace(/"/g,'').trim());
+        // Try multiple column configurations: Date,Desc,Amount OR Date,Desc,Debit,Credit
+        let amt = 0;
+        if (c[2] && !isNaN(parseFloat(c[2]))) amt = parseFloat(c[2]);
+        else if (c[3] && !isNaN(parseFloat(c[3]))) amt = parseFloat(c[3]);
+        // Try to normalize date to YYYY-MM-DD if it's in MM/DD/YYYY
+        let date = c[0] || '';
+        if (date.includes('/')) {
+          const parts = date.split('/');
+          if (parts.length === 3) {
+            const mo = parts[0].padStart(2,'0');
+            const dy = parts[1].padStart(2,'0');
+            let yr = parts[2];
+            if (yr.length === 2) yr = '20' + yr;
+            date = `${yr}-${mo}-${dy}`;
+          }
+        }
+        return {
+          id: 'bank_' + Date.now() + '_' + idx + '_' + Math.random().toString(36).slice(2,8),
+          date: date,
+          desc: c[1] || '',
+          amt: amt
+        };
+      }).filter(r => r.desc && r.amt !== 0);
+      // Append to existing bank rows (don't replace)
+      setBankRows(prev => [...prev, ...newRows]);
+      e.target.value = ''; // reset input so same file can be re-uploaded
     };
     reader.readAsText(file);
   };
@@ -2465,7 +2503,7 @@ function BudgetTracker() {
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'1.25rem' }}>
         <div>
           <h2 style={{ fontFamily:'Lora,Georgia,serif', fontSize:'1.4rem', fontWeight:700, color:'#0D1F3C' }}>📒 Budget Tracker</h2>
-          <p style={{ fontSize:'0.8rem', color:'#7A8BA8', marginTop:2 }}>Track income, expenses, mileage & reconcile with your bank</p>
+          <p style={{ fontSize:'0.8rem', color:'#7A8BA8', marginTop:2 }}>Track income, expenses, mileage & import from your bank</p>
         </div>
         <div style={{ display:'flex', gap:8, alignItems:'center' }}>
           <select value={month} onChange={e=>setMonth(parseInt(e.target.value))} style={{...selSt, width:'auto'}}>
@@ -2487,7 +2525,7 @@ function BudgetTracker() {
       </div>
 
       <div style={{ display:'flex', gap:4, marginBottom:'1.25rem', borderBottom:'1px solid #E2EAF2', paddingBottom:0 }}>
-        {[['income','💵 Income'],['expenses','🧾 Expenses'],['mileage','🚗 Mileage'],['reconcile','🏦 Reconcile'],['monthly','📊 Monthly'],['annual','📄 Annual/Tax']].map(([id,label]) => (
+        {[['income','💵 Income'],['expenses','🧾 Expenses'],['mileage','🚗 Mileage'],['reconcile','📥 Import'],['monthly','📊 Monthly'],['annual','📄 Annual/Tax']].map(([id,label]) => (
           <button key={id} style={tabBtnSt(tab===id)} onClick={()=>setTab(id)}>{label}</button>
         ))}
       </div>
@@ -2590,37 +2628,153 @@ function BudgetTracker() {
         </div>
       )}
 
-      {tab === 'reconcile' && (
-        <div>
-          <div className="card card-p" style={{ marginBottom:'1rem' }}>
-            <div style={{ fontFamily:'Lora,Georgia,serif', fontSize:'1rem', fontWeight:600, color:'#0D1F3C', marginBottom:12 }}>Upload bank statement (CSV)</div>
-            <label style={{ display:'block', border:'1.5px dashed #E2EAF2', borderRadius:10, padding:'1.5rem', textAlign:'center', cursor:'pointer' }}>
-              <div style={{ fontSize:'2rem', marginBottom:8 }}>📂</div>
-              <div style={{ fontSize:'0.85rem', color:'#7A8BA8' }}><strong style={{ color:'#0D1F3C' }}>Click to upload</strong> your bank CSV</div>
-              <div style={{ fontSize:'0.75rem', color:'#7A8BA8', marginTop:4 }}>Columns needed: Date, Description, Amount</div>
-              <input type="file" accept=".csv" style={{ display:'none' }} onChange={parseCSV} />
-            </label>
-          </div>
-          {bankRows.length > 0 && (
-            <div>
-              <div style={{ display:'flex', gap:'0.75rem', marginBottom:'1rem' }}>
-                {[['Bank rows', bankRows.length, '#0D1F3C'], ['Matched', bankRows.filter(r=>([...mInc,...mExp]).find(e=>Math.abs(Math.abs(e.amt)-Math.abs(r.amt))<0.02)).length, '#1B4D3C'], ['Unmatched', bankRows.filter(r=>!([...mInc,...mExp]).find(e=>Math.abs(Math.abs(e.amt)-Math.abs(r.amt))<0.02)).length, '#B53232']].map(([l,v,c]) => (
-                  <div key={l} style={metricCardSt}><div style={{ fontSize:'0.7rem', fontWeight:700, color:'#7A8BA8', textTransform:'uppercase', marginBottom:4 }}>{l}</div><div style={{ fontFamily:'Lora,Georgia,serif', fontSize:'1.3rem', fontWeight:700, color:c }}>{v}</div></div>
-                ))}
+      {tab === 'reconcile' && (() => {
+        // Auto-categorize from description
+        const guessCategory = (desc, isIncome) => {
+          if (isIncome) return null; // income doesn't use categories the same way
+          const d = (desc || '').toLowerCase();
+          if (/(walmart|kroger|heb|aldi|safeway|publix|whole foods|trader joe|food|grocery|grocer|costco|sams club|sam's club)/i.test(d)) return 'Food & groceries';
+          if (/(restaurant|cafe|coffee|starbucks|mcdonald|chick|wendy|burger|pizza|chipotle|panera|sonic|taco|subway|uber eat|doordash|grubhub|dining)/i.test(d)) return 'Food & groceries';
+          if (/(shell|exxon|chevron|valero|bp|mobil|76|gas|fuel|costco gas|sams gas)/i.test(d)) return 'Transportation';
+          if (/(uber|lyft|taxi|parking|toll|car wash|auto|tire|jiffy|oil change|car repair|mechanic|dealership)/i.test(d)) return 'Transportation';
+          if (/(rent|mortgage|hoa)/i.test(d)) return 'Housing';
+          if (/(electric|gas company|water|sewage|utility|internet|cable|wifi|spectrum|comcast|at\&t|verizon|t-mobile|cell phone|phone bill|cox)/i.test(d)) return 'Utilities';
+          if (/(amazon|target|walmart\.com|ebay|etsy|wayfair|home depot|lowes|ikea|best buy|nordstrom|kohls|macy|tjmaxx|marshalls|ross|burlington)/i.test(d)) return 'Personal care';
+          if (/(netflix|hulu|disney|spotify|apple\.com|youtube|prime video|paramount|hbo|peacock|audible|kindle)/i.test(d)) return 'Entertainment';
+          if (/(movie|theater|concert|ticketmaster|stubhub|amc|regal|cinema|game|xbox|playstation|steam)/i.test(d)) return 'Entertainment';
+          if (/(pharmacy|cvs|walgreens|rite aid|medical|hospital|doctor|dentist|optometr|copay|deductible|insurance|aetna|blue cross|cigna|united health|humana)/i.test(d)) return 'Healthcare';
+          if (/(church|tithe|offering|ministry|donate|charity|nonprofit|fellowship|kingdom|gospel|missionary)/i.test(d)) return 'Giving / tithe';
+          if (/(school|tuition|education|book|college|university|udemy|coursera|class|training)/i.test(d)) return 'Education';
+          if (/(salon|hair|nail|spa|barber|gym|fitness|peloton|planet fitness|24 hour)/i.test(d)) return 'Personal care';
+          if (/(clothing|apparel|old navy|gap|h\&m|forever 21|zara|nordstrom|nike|adidas|shoe|footlocker)/i.test(d)) return 'Clothing';
+          if (/(loan|credit card|capital one|chase|discover|amex|american express|citi|wells fargo payment|bank of america payment|synchrony|affirm|klarna|afterpay)/i.test(d)) return 'Debt payment';
+          if (/(transfer|savings|venmo cashout|zelle|paypal transfer|withdraw)/i.test(d)) return 'Savings';
+          return 'Other';
+        };
+
+        const importableRows = bankRows.filter(r => !dismissedBank.includes(r.id) && !r.imported);
+        const importedCount = bankRows.filter(r => r.imported).length;
+        const handleImport = (br, asIncome, customCat) => {
+          const date = br.date;
+          const m = new Date(date).getMonth();
+          const y = new Date(date).getFullYear();
+          if (asIncome) {
+            setIncome(prev => [...prev, { id: Date.now()+Math.random(), date, src: br.desc, amt: Math.abs(br.amt), m, y }]);
+          } else {
+            const cat = customCat || guessCategory(br.desc, false);
+            setExpenses(prev => [...prev, { id: Date.now()+Math.random(), date, desc: br.desc, cat, amt: Math.abs(br.amt), m, y }]);
+          }
+          setBankRows(prev => prev.map(r => r.id === br.id ? { ...r, imported: true } : r));
+        };
+        const handleImportAll = () => {
+          const newIncomes = [];
+          const newExpenses = [];
+          const updatedBankRows = bankRows.map(r => {
+            if (dismissedBank.includes(r.id) || r.imported) return r;
+            const date = r.date;
+            const m = new Date(date).getMonth();
+            const y = new Date(date).getFullYear();
+            if (r.amt > 0) {
+              newIncomes.push({ id: Date.now()+Math.random()+r.id, date, src: r.desc, amt: r.amt, m, y });
+            } else {
+              const cat = guessCategory(r.desc, false);
+              newExpenses.push({ id: Date.now()+Math.random()+r.id, date, desc: r.desc, cat, amt: Math.abs(r.amt), m, y });
+            }
+            return { ...r, imported: true };
+          });
+          setIncome(prev => [...prev, ...newIncomes]);
+          setExpenses(prev => [...prev, ...newExpenses]);
+          setBankRows(updatedBankRows);
+        };
+        const categories = ['Housing','Food & groceries','Transportation','Utilities','Healthcare','Debt payment','Savings','Giving / tithe','Personal care','Entertainment','Clothing','Education','Other'];
+
+        return (
+          <div>
+            <div className="card card-p" style={{ marginBottom:'1rem' }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+                <div style={{ fontFamily:'Lora,Georgia,serif', fontSize:'1.05rem', fontWeight:600, color:'#0D1F3C' }}>📂 Upload bank CSV to import transactions</div>
+                {bankRows.length > 0 && <button onClick={()=>{ if(confirm('Clear all bank rows? (Imported transactions will stay in your records.)')) { setBankRows([]); setDismissedBank([]); } }} style={{ background:'#FDF7E8', color:'#B53232', border:'none', padding:'6px 12px', borderRadius:6, fontSize:'0.75rem', fontWeight:700, cursor:'pointer' }}>🗑 Clear</button>}
               </div>
-              {bankRows.map((r,i) => {
-                const match = [...mInc,...mExp].find(e => Math.abs(Math.abs(e.amt)-Math.abs(r.amt))<0.02);
-                return <div key={i} style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 12px', borderRadius:8, border:'1px solid #E2EAF2', marginBottom:8, fontSize:'0.85rem' }}>
-                  <div style={{ width:80, color:'#7A8BA8', fontSize:'0.78rem', flexShrink:0 }}>{r.date}</div>
-                  <div style={{ flex:1, color:'#0D1F3C' }}>{r.desc}</div>
-                  <div style={{ fontWeight:700, color:r.amt<0?'#B53232':'#1B4D3C', width:90, textAlign:'right' }}>{r.amt<0?'-':'+'}${Math.abs(r.amt).toFixed(2)}</div>
-                  <span style={{ padding:'2px 8px', borderRadius:6, fontSize:'0.72rem', fontWeight:700, background:match?'#EBF6F1':'#FDF7E8', color:match?'#1B4D3C':'#8B6914' }}>{match?'✓ Matched':'Unmatched'}</span>
-                </div>;
-              })}
+              <div style={{ fontSize:'0.78rem', color:'#7A8BA8', marginBottom:10 }}>Skip manual entry! Upload your bank statement and import transactions with auto-categorization.</div>
+              <label style={{ display:'block', border:'1.5px dashed #C9A84C', borderRadius:10, padding:'1.2rem', textAlign:'center', cursor:'pointer', background:'#FDF7E8' }}>
+                <div style={{ fontSize:'1.8rem', marginBottom:6 }}>📥</div>
+                <div style={{ fontSize:'0.9rem', color:'#8B6914', fontWeight:600 }}>Click to upload your bank CSV</div>
+                <div style={{ fontSize:'0.72rem', color:'#8B6914', marginTop:4 }}>Columns: Date, Description, Amount (negative = expense)</div>
+                <input type="file" accept=".csv" style={{ display:'none' }} onChange={parseCSV} />
+              </label>
             </div>
-          )}
-        </div>
-      )}
+
+            {importableRows.length > 0 && (
+              <>
+                <div style={{ display:'flex', gap:'0.6rem', marginBottom:'1rem', flexWrap:'wrap' }}>
+                  <div style={{ flex:'1 1 auto', background:'#fff', border:'1px solid #E2EAF2', borderRadius:10, padding:'10px 14px' }}>
+                    <div style={{ fontSize:'0.65rem', fontWeight:700, color:'#7A8BA8', textTransform:'uppercase' }}>To import</div>
+                    <div style={{ fontFamily:'Lora,Georgia,serif', fontSize:'1.3rem', fontWeight:700, color:'#0D1F3C' }}>{importableRows.length}</div>
+                  </div>
+                  {importedCount > 0 && <div style={{ flex:'1 1 auto', background:'#fff', border:'1px solid #D2E8DC', borderRadius:10, padding:'10px 14px' }}>
+                    <div style={{ fontSize:'0.65rem', fontWeight:700, color:'#7A8BA8', textTransform:'uppercase' }}>Imported</div>
+                    <div style={{ fontFamily:'Lora,Georgia,serif', fontSize:'1.3rem', fontWeight:700, color:'#1B4D3C' }}>{importedCount}</div>
+                  </div>}
+                  <button onClick={handleImportAll} style={{ background:'#0D1F3C', color:'#fff', border:'none', padding:'10px 20px', borderRadius:10, fontSize:'0.85rem', fontWeight:700, cursor:'pointer', alignSelf:'stretch' }}>✓ Import all {importableRows.length}</button>
+                </div>
+
+                <div style={{ marginBottom:8, fontSize:'0.78rem', color:'#7A8BA8', fontWeight:600 }}>
+                  Review & import (auto-categorized — adjust if needed):
+                </div>
+
+                {importableRows.map((br) => {
+                  const isIncome = br.amt > 0;
+                  const suggestedCat = isIncome ? null : guessCategory(br.desc, false);
+                  return (
+                    <div key={br.id} style={{ background:'#fff', border:'1px solid #E2EAF2', borderRadius:10, padding:'12px', marginBottom:8 }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:8, fontSize:'0.85rem' }}>
+                        <div style={{ width:75, color:'#7A8BA8', fontSize:'0.75rem', flexShrink:0 }}>{br.date}</div>
+                        <div style={{ flex:1, color:'#0D1F3C', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{br.desc}</div>
+                        <div style={{ fontWeight:700, color:isIncome?'#1B4D3C':'#B53232', width:85, textAlign:'right', flexShrink:0 }}>{isIncome?'+':'-'}${Math.abs(br.amt).toFixed(2)}</div>
+                      </div>
+                      <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+                        {!isIncome && (
+                          <select defaultValue={suggestedCat} onChange={(e) => {
+                            setBankRows(prev => prev.map(r => r.id === br.id ? { ...r, customCat: e.target.value } : r));
+                          }} style={{ flex:1, padding:'5px 8px', borderRadius:6, border:'1px solid #E2EAF2', fontSize:'0.78rem', background:'#FAFAF6' }}>
+                            {categories.map(c => <option key={c}>{c}</option>)}
+                          </select>
+                        )}
+                        {isIncome && <div style={{ flex:1, fontSize:'0.78rem', color:'#1B4D3C', padding:'5px 8px', background:'#EBF6F1', borderRadius:6, fontWeight:600 }}>💵 Income</div>}
+                        <button onClick={()=>handleImport(br, isIncome, br.customCat)} style={{ padding:'5px 12px', borderRadius:6, fontSize:'0.78rem', fontWeight:700, background:'#0D1F3C', color:'#fff', border:'none', cursor:'pointer' }}>✓ Import</button>
+                        <button onClick={()=>setDismissedBank([...dismissedBank, br.id])} style={{ padding:'5px 10px', borderRadius:6, fontSize:'0.78rem', fontWeight:600, background:'#fff', color:'#7A8BA8', border:'1px solid #E2EAF2', cursor:'pointer' }}>Skip</button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </>
+            )}
+
+            {bankRows.length === 0 && (
+              <div className="card card-p" style={{ textAlign:'center', padding:'2rem', color:'#7A8BA8' }}>
+                <div style={{ fontSize:'2.5rem', marginBottom:8 }}>🏦</div>
+                <div style={{ fontWeight:600, color:'#0D1F3C', marginBottom:4 }}>No bank data uploaded yet</div>
+                <div style={{ fontSize:'0.85rem', marginBottom:12 }}>Save time! Upload your bank CSV instead of entering transactions one by one.</div>
+                <div style={{ fontSize:'0.78rem', color:'#7A8BA8', background:'#FAFAF6', borderRadius:8, padding:'10px 14px', textAlign:'left', maxWidth:400, margin:'0 auto' }}>
+                  <strong style={{ color:'#0D1F3C' }}>How to get your bank CSV:</strong><br/>
+                  1. Log into your bank's website<br/>
+                  2. Go to your account → Statements or History<br/>
+                  3. Look for "Download" or "Export" → choose CSV<br/>
+                  4. Upload the file above ⬆️
+                </div>
+              </div>
+            )}
+
+            {bankRows.length > 0 && importableRows.length === 0 && (
+              <div className="card card-p" style={{ textAlign:'center', padding:'2rem', color:'#1B4D3C' }}>
+                <div style={{ fontSize:'2.5rem', marginBottom:8 }}>✅</div>
+                <div style={{ fontWeight:600, color:'#0D1F3C', marginBottom:4 }}>All transactions imported!</div>
+                <div style={{ fontSize:'0.85rem', color:'#7A8BA8' }}>Upload another file or view your transactions in the Income/Expenses tabs.</div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {tab === 'monthly' && (
         <div>
