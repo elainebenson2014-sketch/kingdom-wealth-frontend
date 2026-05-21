@@ -4302,7 +4302,8 @@ function BudgetTab({ plan, user }) {
   const [customPcts, setCustomPcts] = useState(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(budgetStorageKey) || 'null');
-      if (saved) return saved;
+      // Only use saved data if it's a non-empty array
+      if (saved && Array.isArray(saved) && saved.length > 0) return saved;
     } catch {}
     return plan.budget.map(b => ({ cat: b.cat, color: b.color, pct: b.pct }));
   });
