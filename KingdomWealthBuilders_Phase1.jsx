@@ -4473,20 +4473,20 @@ function BudgetTab({ plan, user }) {
         ))}
       </div>
 
+      <div style={{ background:'#FFF8E1', border:'1px dashed #C9A84C', borderRadius:8, padding:'10px 12px', marginBottom:'1rem', fontSize:'0.72rem', color:'#6B5417', fontFamily:'monospace', whiteSpace:'pre-wrap', wordBreak:'break-word' }}>
+        🔧 TEMP DIAGNOSTIC (we'll remove this){'\n'}
+        today: {__diag.cur}{'\n'}
+        expense drawers found: {__diag.drawers.length ? __diag.drawers.join('  |  ') : 'NONE'}{'\n'}
+        transactions in chosen drawer: {__diag.chosen}{'\n'}
+        matched to this month: {__diag.matchedInMonth}{'\n'}
+        sample: {JSON.stringify(__diag.sample)}{__diag.error ? '\nerror: ' + __diag.error : ''}
+      </div>
+
       {hasActual ? (
         <div style={{ marginBottom:'1.5rem' }}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'0.75rem' }}>
             <h3 style={{ fontSize:'1.1rem', color:'#0D1F3C' }}>📊 Budget vs Actual — {monthName} {now.getFullYear()}</h3>
             <div style={{ fontSize:'0.85rem', color:'#7A8BA8' }}>From your Budget Tracker imports</div>
-          </div>
-
-          <div style={{ background:'#FFF8E1', border:'1px dashed #C9A84C', borderRadius:8, padding:'10px 12px', marginBottom:'1rem', fontSize:'0.72rem', color:'#6B5417', fontFamily:'monospace', whiteSpace:'pre-wrap', wordBreak:'break-word' }}>
-            🔧 TEMP DIAGNOSTIC (we'll remove this){'\n'}
-            today: {__diag.cur}{'\n'}
-            expense drawers found: {__diag.drawers.length ? __diag.drawers.join('  |  ') : 'NONE'}{'\n'}
-            transactions in chosen drawer: {__diag.chosen}{'\n'}
-            matched to this month: {__diag.matchedInMonth}{'\n'}
-            sample: {JSON.stringify(__diag.sample)}{__diag.error ? '\nerror: ' + __diag.error : ''}
           </div>
 
           <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:8, marginBottom:'1rem' }}>
