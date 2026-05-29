@@ -4315,7 +4315,6 @@ function BudgetTab({ plan, user }) {
 
   // Budget vs Actual data
   let actualByCategory = {};
-  let __diag = { drawers: [], chosen: 0, matchedInMonth: 0, cur: '', sample: [] };
   try {
     // The Budget Tracker may save expenses under a slightly different user
     // key than this view derives, so read the user's own drawer first and,
@@ -4332,7 +4331,6 @@ function BudgetTab({ plan, user }) {
         if (k && /^kwb_.*_expenses$/.test(k)) {
           try {
             const arr = JSON.parse(localStorage.getItem(k) || '[]');
-            __diag.drawers.push(`${k}: ${Array.isArray(arr) ? arr.length : '?'}`);
             if (Array.isArray(arr) && arr.length > best.length) best = arr;
           } catch {}
         }
@@ -4343,11 +4341,6 @@ function BudgetTab({ plan, user }) {
     const now = new Date();
     const curMonth = now.getMonth();
     const curYear = now.getFullYear();
-    __diag.chosen = txExpenses.length;
-    __diag.cur = `m=${curMonth} y=${curYear}`;
-    __diag.sample = txExpenses.slice(0, 3).map(tx => ({
-      date: tx.date, m: tx.m, y: tx.y, key: tx.key, cat: (tx.cat ?? tx.category), amt: (tx.amt ?? tx.amount)
-    }));
     txExpenses.forEach(tx => {
       // Prefer the stored month/year tag (what the Budget Tracker filters on);
       // fall back to parsing the date string only if that tag is missing.
@@ -4356,13 +4349,12 @@ function BudgetTab({ plan, user }) {
         ? (tx.m === curMonth && tx.y === curYear)
         : (d.getMonth() === curMonth && d.getFullYear() === curYear);
       if (inMonth) {
-        __diag.matchedInMonth += 1;
         const cat = tx.cat || tx.category || 'Other';
         const amt = parseFloat(tx.amt ?? tx.amount) || 0;
         actualByCategory[cat] = (actualByCategory[cat] || 0) + Math.abs(amt);
       }
     });
-  } catch (e) { __diag.error = String(e && e.message || e); }
+  } catch {}
 
   const hasActual = Object.keys(actualByCategory).length > 0;
   const catKeywords = {
@@ -4471,15 +4463,6 @@ function BudgetTab({ plan, user }) {
             <div style={{ fontSize: "0.85rem", color: "#3E506B" }}>{b.cat}</div>
           </div>
         ))}
-      </div>
-
-      <div style={{ background:'#FFF8E1', border:'1px dashed #C9A84C', borderRadius:8, padding:'10px 12px', marginBottom:'1rem', fontSize:'0.72rem', color:'#6B5417', fontFamily:'monospace', whiteSpace:'pre-wrap', wordBreak:'break-word' }}>
-        🔧 TEMP DIAGNOSTIC (we'll remove this){'\n'}
-        today: {__diag.cur}{'\n'}
-        expense drawers found: {__diag.drawers.length ? __diag.drawers.join('  |  ') : 'NONE'}{'\n'}
-        transactions in chosen drawer: {__diag.chosen}{'\n'}
-        matched to this month: {__diag.matchedInMonth}{'\n'}
-        sample: {JSON.stringify(__diag.sample)}{__diag.error ? '\nerror: ' + __diag.error : ''}
       </div>
 
       {hasActual ? (
