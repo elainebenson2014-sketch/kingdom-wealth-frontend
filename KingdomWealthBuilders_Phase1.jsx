@@ -2466,82 +2466,8 @@ function BudgetTracker({ user }) {
   useEffect(() => { try { localStorage.setItem(sk('bankrows'), JSON.stringify(bankRows)); } catch {} }, [bankRows]);
   useEffect(() => { try { localStorage.setItem(sk('reconciled'), JSON.stringify(reconciledIds)); } catch {} }, [reconciledIds]);
   useEffect(() => { try { localStorage.setItem(sk('dismissed_bank'), JSON.stringify(dismissedBank)); } catch {} }, [dismissedBank]);
-// ===== SUPABASE CLOUD SYNC =====
-  const [cloudSynced, setCloudSynced] = useState(false);
-  const [syncMsg, setSyncMsg] = useState('');
-  const [supaUserId, setSupaUserId] = useState(null);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const sb = await getSupabase();
-        const { data: { session } } = await sb.auth.getSession();
-        if (session?.user?.id) setSupaUserId(session.user.id);
-      } catch(e) { console.log('No auth session'); }
-    })();
-  }, []);
-
-  useEffect(() => {
-    if (!supaUserId) return;
-    (async () => {
-      try {
-        setSyncMsg('☁️ Loading your data from cloud...');
-        const sb = await getSupabase();
-        const [incData, expData, milData, acctData, xferData] = await Promise.all([
-          sb.from('kwb_income').select('*').eq('user_id', supaUserId),
-          sb.from('kwb_expenses').select('*').eq('user_id', supaUserId),
-          sb.from('kwb_mileage').select('*').eq('user_id', supaUserId),
-          sb.from('kwb_accounts').select('*').eq('user_id', supaUserId),
-          sb.from('kwb_transfers').select('*').eq('user_id', supaUserId),
-        ]);
-        if (incData?.data?.length > 0) setIncome(incData.data.map(r => ({ ...r, key: `${new Date(r.date).getFullYear()}-${new Date(r.date).getMonth()}` })));
-        if (expData?.data?.length > 0) setExpenses(expData.data.map(r => ({ ...r, key: `${new Date(r.date).getFullYear()}-${new Date(r.date).getMonth()}` })));
-        if (milData?.data?.length > 0) setMileage(milData.data.map(r => ({ ...r, key: `${new Date(r.date).getFullYear()}-${new Date(r.date).getMonth()}` })));
-        if (acctData?.data?.length > 0) setAccounts(acctData.data);
-        if (xferData?.data?.length > 0) setTransfers(xferData.data);
-        setCloudSynced(true);
-        setSyncMsg('✓ Cloud sync active — your data saves to the cloud automatically');
-        setTimeout(()=>setSyncMsg(''), 4000);
-      } catch(e) {
-        console.error('Cloud load:', e);
-        setSyncMsg('⚠️ Cloud sync unavailable — data saved locally only');
-      }
-    })();
-  }, [supaUserId]);
-
-  const saveToCloud = async (table, items) => {
-    if (!supaUserId || !cloudSynced) return;
-    try {
-      const sb = await getSupabase();
-      await sb.from(table).delete().eq('user_id', supaUserId);
-      if (items.length > 0) {
-        const validFields = {
-          'kwb_income': ['id','user_id','date','amount','source','category','account_id','notes'],
-          'kwb_expenses': ['id','user_id','date','amount','description','category','account_id','notes'],
-          'kwb_mileage': ['id','user_id','date','miles','purpose','from_location','to_location','rate','notes'],
-          'kwb_accounts': ['id','user_id','name','type','balance','institution','notes'],
-          'kwb_transfers': ['id','user_id','date','amount','from_account','to_account','notes'],
-        };
-        const allowed = validFields[table] || [];
-        const rows = items.map(item => {
-          const row = { user_id: supaUserId };
-          allowed.forEach(f => { if (item[f] !== undefined && item[f] !== null) row[f] = item[f]; });
-          if (row.id && typeof row.id !== 'string') row.id = String(row.id);
-          if (!row.id) row.id = `${table.replace('kwb_','')}_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
-          if (row.date && row.date.length > 10) row.date = row.date.slice(0, 10);
-          return row;
-        });
-        for (let i = 0; i < rows.length; i += 100) {
-          const { error } = await sb.from(table).insert(rows.slice(i, i+100));
-          if (error) console.error(`Cloud insert (${table}):`, error.message);
-        }
-      }
-    } catch(e) { console.error(`Cloud save (${table}):`, e); }
-  };
-return (
-    <div style={{ fontFamily:'Nunito,sans-serif' }}>
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'1.25rem' }}>
-    // Bank accounts management (user-specific)
+  // Bank accounts management (user-specific)
   const [accounts, setAccounts] = useState(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(sk('accounts')) || '[]');
