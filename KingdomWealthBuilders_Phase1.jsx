@@ -4323,8 +4323,8 @@ function BudgetTab({ plan, user }) {
     txExpenses.forEach(tx => {
       const d = new Date(tx.date);
       if (d.getMonth() === curMonth && d.getFullYear() === curYear) {
-        const cat = tx.category || 'Other';
-        const amt = parseFloat(tx.amount) || 0;
+        const cat = tx.cat || tx.category || 'Other';
+        const amt = parseFloat(tx.amt ?? tx.amount) || 0;
         actualByCategory[cat] = (actualByCategory[cat] || 0) + Math.abs(amt);
       }
     });
