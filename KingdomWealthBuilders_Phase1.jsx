@@ -2541,12 +2541,7 @@ function BudgetTracker({ user }) {
 return (
     <div style={{ fontFamily:'Nunito,sans-serif' }}>
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'1.25rem' }}>
-  useEffect(() => { if (cloudSynced) saveToCloud('kwb_income', income); }, [income, cloudSynced]);
-  useEffect(() => { if (cloudSynced) saveToCloud('kwb_expenses', expenses); }, [expenses, cloudSynced]);
-  useEffect(() => { if (cloudSynced) saveToCloud('kwb_mileage', mileage); }, [mileage, cloudSynced]);
-  useEffect(() => { if (cloudSynced) saveToCloud('kwb_accounts', accounts); }, [accounts, cloudSynced]);
-  useEffect(() => { if (cloudSynced) saveToCloud('kwb_transfers', transfers); }, [transfers, cloudSynced]);
-  // Bank accounts management (user-specific)
+    // Bank accounts management (user-specific)
   const [accounts, setAccounts] = useState(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(sk('accounts')) || '[]');
