@@ -4316,13 +4316,39 @@ function BudgetTab({ plan, user }) {
   // Budget vs Actual data
   let actualByCategory = {};
   try {
-    const txExpenses = JSON.parse(localStorage.getItem(`kwb_${userKey}_expenses`) || '[]');
+    // The Budget Tracker may save expenses under a slightly different user
+    // key than this view derives, so read the user's own drawer first and,
+    // if it's empty, fall back to whichever kwb expenses drawer actually has
+    // transactions. This only reads data — it never moves or rewrites it.
+    const readExpenses = () => {
+      try {
+        const primary = JSON.parse(localStorage.getItem(`kwb_${userKey}_expenses`) || '[]');
+        if (Array.isArray(primary) && primary.length > 0) return primary;
+      } catch {}
+      let best = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && /^kwb_.*_expenses$/.test(k)) {
+          try {
+            const arr = JSON.parse(localStorage.getItem(k) || '[]');
+            if (Array.isArray(arr) && arr.length > best.length) best = arr;
+          } catch {}
+        }
+      }
+      return best;
+    };
+    const txExpenses = readExpenses();
     const now = new Date();
     const curMonth = now.getMonth();
     const curYear = now.getFullYear();
     txExpenses.forEach(tx => {
+      // Prefer the stored month/year tag (what the Budget Tracker filters on);
+      // fall back to parsing the date string only if that tag is missing.
       const d = new Date(tx.date);
-      if (d.getMonth() === curMonth && d.getFullYear() === curYear) {
+      const inMonth = (typeof tx.m === 'number' && typeof tx.y === 'number')
+        ? (tx.m === curMonth && tx.y === curYear)
+        : (d.getMonth() === curMonth && d.getFullYear() === curYear);
+      if (inMonth) {
         const cat = tx.cat || tx.category || 'Other';
         const amt = parseFloat(tx.amt ?? tx.amount) || 0;
         actualByCategory[cat] = (actualByCategory[cat] || 0) + Math.abs(amt);
