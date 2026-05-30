@@ -318,6 +318,13 @@ body{font-family:'Nunito',sans-serif;background:#FAFAF6;color:#0D1F3C;line-heigh
   .features-grid{grid-template-columns:1fr}
   .nav{padding:0 1.1rem}
   .dash-main{padding:1.4rem}
+  /* Budget Tracker: stack entry forms into full-width tappable fields */
+  .entry-grid{grid-template-columns:1fr !important}
+  .entry-grid > *{width:100% !important; box-sizing:border-box; min-height:44px; font-size:16px !important}
+  .entry-grid button{min-height:46px}
+  /* Wide transaction tables scroll sideways instead of crushing */
+  .card{overflow-x:auto}
+  table{min-width:520px}
 }
 
 @keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
@@ -2788,7 +2795,7 @@ function BudgetTracker({ user }) {
         <div>
           <div className="card card-p" style={{ marginBottom:'1rem' }}>
             <div style={{ fontFamily:'Lora,Georgia,serif', fontSize:'1rem', fontWeight:600, color:'#0D1F3C', marginBottom:12 }}>Add income source</div>
-            <div style={{ display:'grid', gridTemplateColumns:'2fr 1.5fr 1fr auto', gap:8 }}>
+            <div className="entry-grid" style={{ display:'grid', gridTemplateColumns:'2fr 1.5fr 1fr auto', gap:8 }}>
               <input style={inputSt} placeholder="Source (e.g. Salary, Freelance)" value={incSrc} onChange={e=>setIncSrc(e.target.value)} />
               <select style={selSt} value={incCat} onChange={e=>setIncCat(e.target.value)}>
                 {['Primary job','Side business','Freelance','Rental income','Investment','Gift / other'].map(o=><option key={o}>{o}</option>)}
@@ -2890,7 +2897,7 @@ function BudgetTracker({ user }) {
         <div>
           <div className="card card-p" style={{ marginBottom:'1rem' }}>
             <div style={{ fontFamily:'Lora,Georgia,serif', fontSize:'1rem', fontWeight:600, color:'#0D1F3C', marginBottom:12 }}>Add expense</div>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 2fr 1.5fr 1fr 1.5fr auto', gap:8 }}>
+            <div className="entry-grid" style={{ display:'grid', gridTemplateColumns:'1fr 2fr 1.5fr 1fr 1.5fr auto', gap:8 }}>
               <input style={inputSt} type="date" value={expDate} onChange={e=>setExpDate(e.target.value)} />
               <input style={inputSt} placeholder="Description" value={expDesc} onChange={e=>setExpDesc(e.target.value)} />
               <select style={selSt} value={expCat} onChange={e=>setExpCat(e.target.value)}>
@@ -3208,7 +3215,7 @@ function BudgetTracker({ user }) {
 
           <div className="card card-p" style={{ marginBottom:'1rem' }}>
             <div style={{ fontFamily:'Lora,Georgia,serif', fontSize:'1rem', fontWeight:600, color:'#0D1F3C', marginBottom:12 }}>Log a trip manually</div>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 2fr 1fr 1fr auto', gap:8 }}>
+            <div className="entry-grid" style={{ display:'grid', gridTemplateColumns:'1fr 2fr 1fr 1fr auto', gap:8 }}>
               <input style={inputSt} type="date" value={milDate} onChange={e=>setMilDate(e.target.value)} />
               <input style={inputSt} placeholder="Purpose (e.g. Client visit, Medical)" value={milPurpose} onChange={e=>setMilPurpose(e.target.value)} />
               <input style={inputSt} type="number" placeholder="Miles" value={milMiles} onChange={e=>setMilMiles(e.target.value)} />
