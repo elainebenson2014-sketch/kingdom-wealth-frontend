@@ -2004,6 +2004,13 @@ function QuickEditPanel({ plan, onClose, onSave }) {
 function Dashboard({ plan, user, dashTab, setDashTab, checked, setChecked, checkinChecked, setCheckinChecked, onLogout, onRedo, onPlanUpdate }) {
   const [showQuickEdit, setShowQuickEdit] = React.useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+  const [isMobile, setIsMobile] = React.useState(typeof window !== 'undefined' && window.innerWidth <= 768);
+  React.useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', onResize);
+    onResize();
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
   const sidebarItems = [
     { id: "overview", icon: "🏠", label: "Overview" },
     { id: "networth", icon: "💎", label: "Net Worth" },
@@ -2025,18 +2032,25 @@ function Dashboard({ plan, user, dashTab, setDashTab, checked, setChecked, check
   const toggleCheckin = i => setCheckinChecked(c => c.includes(i) ? c.filter(x => x !== i) : [...c, i]);
 
   return (
-    <div className="dash-layout">
-      {/* Mobile top bar with hamburger — only visible on small screens */}
-      <div className="mobile-bar">
-        <button className="mobile-menu-btn" onClick={() => setMobileMenuOpen(true)} aria-label="Open menu">☰ Menu</button>
-        <span className="mobile-bar-title">👑 Kingdom Wealth</span>
-      </div>
+    <div className="dash-layout" style={{ display: isMobile ? 'block' : 'flex', minHeight:'100vh', paddingTop: isMobile ? 0 : 66 }}>
+      {/* Mobile top bar with hamburger */}
+      {isMobile && (
+        <div style={{ display:'flex', alignItems:'center', gap:12, position:'sticky', top:0, zIndex:90, background:'#0D1F3C', padding:'10px 14px' }}>
+          <button onClick={() => setMobileMenuOpen(true)} aria-label="Open menu" style={{ background:'rgba(255,255,255,0.12)', color:'#fff', border:'none', borderRadius:8, padding:'9px 13px', fontSize:15, fontWeight:600, cursor:'pointer' }}>☰ Menu</button>
+          <span style={{ color:'#fff', fontWeight:600, fontSize:'0.95rem' }}>👑 Kingdom Wealth</span>
+        </div>
+      )}
 
       {/* Backdrop behind the drawer */}
-      {mobileMenuOpen && <div className="mobile-backdrop" onClick={() => setMobileMenuOpen(false)}></div>}
+      {isMobile && mobileMenuOpen && <div onClick={() => setMobileMenuOpen(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:999 }}></div>}
 
-      <aside className={`sidebar ${mobileMenuOpen ? "sidebar-open" : ""}`}>
-        <button className="sidebar-close" onClick={() => setMobileMenuOpen(false)} aria-label="Close menu">✕</button>
+      <aside className="sidebar" style={isMobile ? {
+        position:'fixed', top:0, left:0, bottom:0, zIndex:1000,
+        width:'80%', maxWidth:300,
+        transform: mobileMenuOpen ? 'translateX(0)' : 'translateX(-100%)',
+        transition:'transform 0.25s ease', overflowY:'auto',
+      } : {}}>
+        {isMobile && <button onClick={() => setMobileMenuOpen(false)} aria-label="Close menu" style={{ position:'absolute', top:10, right:12, background:'none', border:'none', color:'#fff', fontSize:22, cursor:'pointer', zIndex:1 }}>✕</button>}
         <div className="sb-avatar">
           <div className="sb-av-circle">{(user?.name || plan.user.name || "K")[0].toUpperCase()}</div>
           <div>
@@ -2060,7 +2074,7 @@ function Dashboard({ plan, user, dashTab, setDashTab, checked, setChecked, check
       {/* Quick Edit Panel */}
       {showQuickEdit && <QuickEditPanel plan={plan} onClose={() => setShowQuickEdit(false)} onSave={(updated) => { if (onPlanUpdate) onPlanUpdate(updated); setShowQuickEdit(false); }} />}
 
-      <main className="dash-main">
+      <main className="dash-main" style={isMobile ? { marginLeft:0, padding:'1.4rem', width:'100%' } : {}}>
         <div style={{ marginBottom: "1.75rem" }}>
           <h1 className="dash-welcome">Good day, {(user?.name || plan.user.name || "Friend").split(" ")[0]}. 👑</h1>
           <p className="dash-sub">{new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })} · Your Kingdom financial dashboard</p>
