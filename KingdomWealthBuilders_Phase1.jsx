@@ -31,6 +31,68 @@ const getSupabase = async () => {
   }
 };
 
+// ─── useCloudState ──────────────────────────────────────────────────────────
+// A drop-in replacement for a localStorage-backed useState that ALSO syncs to
+// Supabase (table: public.kwb_data, one row per user+key). Non-destructive:
+// on first load it prefers cloud data if present, else keeps local; it always
+// writes through to localStorage so the app still works fully offline / if the
+// table doesn't exist yet. `localKey` keeps backward compatibility with data
+// already saved on the device.
+function useCloudState(cloudKey, localKey, initialValue) {
+  const read = () => {
+    try {
+      const raw = localStorage.getItem(localKey);
+      if (raw != null) return JSON.parse(raw);
+    } catch {}
+    return typeof initialValue === "function" ? initialValue() : initialValue;
+  };
+  const [value, setValue] = useState(read);
+  const uidRef = useRef(null);
+  const ready = useRef(false);
+  const saveTimer = useRef(null);
+
+  // Load from cloud once; if a cloud row exists, it wins (most recent device).
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const sb = await getSupabase();
+        const { data: { session } } = await sb.auth.getSession();
+        const uid = session?.user?.id;
+        if (!uid) return;
+        uidRef.current = uid;
+        const { data, error } = await sb.from("kwb_data").select("value").eq("user_id", uid).eq("key", cloudKey).maybeSingle();
+        if (error) throw error;
+        if (active && data && data.value != null) {
+          setValue(data.value);
+          try { localStorage.setItem(localKey, JSON.stringify(data.value)); } catch {}
+        }
+      } catch {}
+      finally { ready.current = true; }
+    })();
+    return () => { active = false; };
+  }, [cloudKey, localKey]);
+
+  // Always save to localStorage immediately; debounce-save to cloud.
+  useEffect(() => {
+    try { localStorage.setItem(localKey, JSON.stringify(value)); } catch {}
+    if (!ready.current || !uidRef.current) return;
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(async () => {
+      try {
+        const sb = await getSupabase();
+        await sb.from("kwb_data").upsert(
+          { user_id: uidRef.current, key: cloudKey, value, updated_at: new Date().toISOString() },
+          { onConflict: "user_id,key" }
+        );
+      } catch {}
+    }, 1000);
+    return () => clearTimeout(saveTimer.current);
+  }, [value, cloudKey, localKey]);
+
+  return [value, setValue];
+}
+
 // ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
 const C = {
   navy: "#0D1F3C",
@@ -3770,8 +3832,9 @@ function NetWorthTab({ user, plan }) {
   const userKey = user?.email ? user.email.toLowerCase().replace(/[^a-z0-9]/g, '_') : 'guest';
   const storageKey = `kwb_${userKey}_networth`;
 
-  const [data, setData] = useState(() => {
-    try { return JSON.parse(localStorage.getItem(storageKey) || 'null') || {
+  const [data, setData] = useCloudState(`networth`, storageKey, () => {
+    try { const v = JSON.parse(localStorage.getItem(storageKey) || 'null'); if (v) return v; } catch {}
+    return {
       assets: [
         { id: 'a_cash', name: 'Cash & Checking', amount: 0 },
         { id: 'a_savings', name: 'Savings Accounts', amount: 0 },
@@ -3789,13 +3852,9 @@ function NetWorthTab({ user, plan }) {
         { id: 'l_personal', name: 'Personal Loans', amount: 0 },
         { id: 'l_other_debt', name: 'Other Debts', amount: 0 },
       ],
-      history: [],  // [{ date, netWorth, totalAssets, totalLiabilities }]
-    }; } catch { return null; }
+      history: [],
+    };
   });
-
-  useEffect(() => {
-    if (data) try { localStorage.setItem(storageKey, JSON.stringify(data)); } catch {}
-  }, [data, storageKey]);
 
   const fmt = (n) => '$' + Number(n||0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const totalAssets = data.assets.reduce((s, a) => s + Number(a.amount||0), 0);
@@ -3940,10 +3999,9 @@ function InvestmentsTab({ user }) {
   const userKey = user?.email ? user.email.toLowerCase().replace(/[^a-z0-9]/g, '_') : 'guest';
   const storageKey = `kwb_${userKey}_investments`;
 
-  const [accounts, setAccounts] = useState(() => {
+  const [accounts, setAccounts] = useCloudState(`investments`, storageKey, () => {
     try { return JSON.parse(localStorage.getItem(storageKey) || '[]'); } catch { return []; }
   });
-  useEffect(() => { try { localStorage.setItem(storageKey, JSON.stringify(accounts)); } catch {} }, [accounts, storageKey]);
 
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -4097,8 +4155,7 @@ function InvestmentsTab({ user }) {
 function BillsTab({ user }) {
   const userKey = user?.email ? user.email.toLowerCase().replace(/[^a-z0-9]/g,'_') : 'guest';
   const storageKey = `kwb_${userKey}_bills`;
-  const [bills, setBills] = useState(() => { try { return JSON.parse(localStorage.getItem(storageKey) || '[]'); } catch { return []; } });
-  useEffect(() => { try { localStorage.setItem(storageKey, JSON.stringify(bills)); } catch {} }, [bills, storageKey]);
+  const [bills, setBills] = useCloudState(`bills`, storageKey, () => { try { return JSON.parse(localStorage.getItem(storageKey) || '[]'); } catch { return []; } });
 
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -4235,8 +4292,7 @@ function BillsTab({ user }) {
 function SubscriptionsTab({ user }) {
   const userKey = user?.email ? user.email.toLowerCase().replace(/[^a-z0-9]/g,'_') : 'guest';
   const storageKey = `kwb_${userKey}_subscriptions`;
-  const [subs, setSubs] = useState(() => { try { return JSON.parse(localStorage.getItem(storageKey) || '[]'); } catch { return []; } });
-  useEffect(() => { try { localStorage.setItem(storageKey, JSON.stringify(subs)); } catch {} }, [subs, storageKey]);
+  const [subs, setSubs] = useCloudState(`subscriptions`, storageKey, () => { try { return JSON.parse(localStorage.getItem(storageKey) || '[]'); } catch { return []; } });
 
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState(null);
