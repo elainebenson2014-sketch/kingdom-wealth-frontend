@@ -16,7 +16,7 @@ const getSupabase = async () => {
     // Return a mock client that silently fails so the app still works
     return {
       auth: {
-        getSession: async () => ({ data: { session: null } }),
+        getSession: async () => ({ data: { session: anull } }),
         onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
         signUp: async () => ({ data: null, error: { message: "Auth unavailable" } }),
         signInWithPassword: async () => ({ data: null, error: { message: "Auth unavailable" } }),
@@ -372,14 +372,6 @@ body{font-family:'Nunito',sans-serif;background:#FAFAF6;color:#0D1F3C;line-heigh
   .features-grid{grid-template-columns:1fr 1fr}
   .stats-row{grid-template-columns:1fr 1fr}
   .dash-grid-2,.dash-grid-3{grid-template-columns:1fr}
-  /* Mobile nav: hamburger bar + slide-in drawer (instead of hiding nav) */
-  .mobile-bar{display:flex; align-items:center; gap:12px; position:sticky; top:0; z-index:90; background:#0D1F3C; padding:10px 14px; margin:-1.4rem -1.4rem 1rem -1.4rem}
-  .mobile-menu-btn{background:#1a3354; color:#fff; border:none; border-radius:8px; padding:10px 14px; font-size:15px; font-weight:600; cursor:pointer}
-  .mobile-bar-title{color:#fff; font-weight:600; font-size:0.95rem}
-  .sidebar{display:block; transform:translateX(-100%); transition:transform 0.25s ease; top:0; width:80%; max-width:300px; padding-top:1rem}
-  .sidebar.sidebar-open{transform:translateX(0)}
-  .sidebar-close{display:block; position:absolute; top:10px; right:12px; background:none; border:none; color:#fff; font-size:22px; cursor:pointer; z-index:1}
-  .mobile-backdrop{display:block; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:99}
   .dash-main{margin-left:0}
   .form-row{grid-template-columns:1fr}
   .nav-center{display:none}
@@ -2032,12 +2024,12 @@ function Dashboard({ plan, user, dashTab, setDashTab, checked, setChecked, check
   const toggleCheckin = i => setCheckinChecked(c => c.includes(i) ? c.filter(x => x !== i) : [...c, i]);
 
   return (
-    <div className="dash-layout" style={{ display: isMobile ? 'block' : 'flex', minHeight:'100vh', paddingTop: isMobile ? 0 : 66 }}>
-      {/* Mobile top bar with hamburger */}
+    <div className="dash-layout" style={{ display: isMobile ? 'block' : 'flex', minHeight:'100vh', paddingTop: 66 }}>
+      {/* Mobile top bar with hamburger — sits just below the fixed top nav (66px) */}
       {isMobile && (
-        <div style={{ display:'flex', alignItems:'center', gap:12, position:'sticky', top:0, zIndex:90, background:'#0D1F3C', padding:'10px 14px' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:12, position:'sticky', top:66, zIndex:301, background:'#0D1F3C', padding:'10px 14px', borderTop:'1px solid rgba(201,168,76,0.18)' }}>
           <button onClick={() => setMobileMenuOpen(true)} aria-label="Open menu" style={{ background:'rgba(255,255,255,0.12)', color:'#fff', border:'none', borderRadius:8, padding:'9px 13px', fontSize:15, fontWeight:600, cursor:'pointer' }}>☰ Menu</button>
-          <span style={{ color:'#fff', fontWeight:600, fontSize:'0.95rem' }}>👑 Kingdom Wealth</span>
+          <span style={{ color:'#fff', fontWeight:600, fontSize:'0.95rem' }}>Menu</span>
         </div>
       )}
 
@@ -2048,7 +2040,7 @@ function Dashboard({ plan, user, dashTab, setDashTab, checked, setChecked, check
         position:'fixed', top:0, left:0, bottom:0, zIndex:1000,
         width:'80%', maxWidth:300,
         transform: mobileMenuOpen ? 'translateX(0)' : 'translateX(-100%)',
-        transition:'transform 0.25s ease', overflowY:'auto',
+        transition:'transform 0.25s ease', overflowY:'auto', paddingTop:'1rem',
       } : {}}>
         {isMobile && <button onClick={() => setMobileMenuOpen(false)} aria-label="Close menu" style={{ position:'absolute', top:10, right:12, background:'none', border:'none', color:'#fff', fontSize:22, cursor:'pointer', zIndex:1 }}>✕</button>}
         <div className="sb-avatar">
