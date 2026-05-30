@@ -2494,6 +2494,84 @@ function BudgetTracker({ user }) {
     try { return JSON.parse(localStorage.getItem(sk('transfers')) || '[]'); } catch { return []; }
   });
   useEffect(() => { try { localStorage.setItem(sk('transfers'), JSON.stringify(transfers)); } catch {} }, [transfers]);
+
+  // ─── CLOUD SYNC (Supabase) ───────────────────────────────────────────────
+  // Saves all Budget Tracker data to the cloud so it follows the user across
+  // devices. Non-destructive: on first load it MERGES cloud + local by id so
+  // nothing is lost, and if Supabase is ever unreachable it silently keeps
+  // working off localStorage. Requires the public.kwb_tracker table (see
+  // kwb_tracker_table.sql). If that table doesn't exist yet, the app still
+  // works locally — sync just stays off until the table is created.
+  const [cloudStatus, setCloudStatus] = useState('idle'); // idle|loading|saved|saving|offline
+  const cloudUserId = React.useRef(null);
+  const cloudReady = React.useRef(false);
+  const cloudSaveTimer = React.useRef(null);
+
+  // Merge two arrays of records by id (cloud + local), keeping every unique id.
+  const mergeById = (a, b) => {
+    const out = new Map();
+    (Array.isArray(a) ? a : []).forEach(r => { if (r && r.id != null) out.set(String(r.id), r); });
+    (Array.isArray(b) ? b : []).forEach(r => { if (r && r.id != null && !out.has(String(r.id))) out.set(String(r.id), r); });
+    return Array.from(out.values());
+  };
+
+  // Load from cloud once on mount and merge into local state.
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const sb = await getSupabase();
+        const { data: { session } } = await sb.auth.getSession();
+        const uid = session?.user?.id;
+        if (!uid) { setCloudStatus('offline'); cloudReady.current = true; return; }
+        cloudUserId.current = uid;
+        setCloudStatus('loading');
+        const { data, error } = await sb.from('kwb_tracker').select('data').eq('user_id', uid).maybeSingle();
+        if (error) throw error;
+        if (active && data?.data) {
+          const c = data.data;
+          if (Array.isArray(c.income))     setIncome(prev => mergeById(c.income, prev).map(ensureKey));
+          if (Array.isArray(c.expenses))   setExpenses(prev => mergeById(c.expenses, prev).map(ensureKey));
+          if (Array.isArray(c.mileage))    setMileage(prev => mergeById(c.mileage, prev).map(ensureKey));
+          if (Array.isArray(c.bankRows))   setBankRows(prev => mergeById(c.bankRows, prev));
+          if (Array.isArray(c.transfers))  setTransfers(prev => mergeById(c.transfers, prev));
+          if (Array.isArray(c.accounts) && c.accounts.length) setAccounts(prev => mergeById(c.accounts, prev));
+          if (Array.isArray(c.reconciledIds)) setReconciledIds(prev => Array.from(new Set([...(c.reconciledIds||[]), ...(prev||[])])));
+          if (Array.isArray(c.dismissedBank)) setDismissedBank(prev => Array.from(new Set([...(c.dismissedBank||[]), ...(prev||[])])));
+        }
+        if (active) setCloudStatus('saved');
+      } catch (e) {
+        // Table missing or network issue → stay local-only, never break.
+        if (active) setCloudStatus('offline');
+      } finally {
+        cloudReady.current = true;
+      }
+    })();
+    return () => { active = false; };
+  }, []);
+
+  // Debounced save of everything to the cloud whenever any data changes.
+  useEffect(() => {
+    if (!cloudReady.current || !cloudUserId.current) return;
+    setCloudStatus('saving');
+    clearTimeout(cloudSaveTimer.current);
+    cloudSaveTimer.current = setTimeout(async () => {
+      try {
+        const sb = await getSupabase();
+        const payload = { income, expenses, mileage, bankRows, transfers, accounts, reconciledIds, dismissedBank };
+        const { error } = await sb.from('kwb_tracker').upsert(
+          { user_id: cloudUserId.current, data: payload, updated_at: new Date().toISOString() },
+          { onConflict: 'user_id' }
+        );
+        if (error) throw error;
+        setCloudStatus('saved');
+      } catch (e) {
+        setCloudStatus('offline');
+      }
+    }, 1000);
+    return () => clearTimeout(cloudSaveTimer.current);
+  }, [income, expenses, mileage, bankRows, transfers, accounts, reconciledIds, dismissedBank]);
+
   const [expDate, setExpDate] = useState(now.toISOString().slice(0,10)); const [expDesc, setExpDesc] = useState(""); const [expCat, setExpCat] = useState("Housing"); const [expAmt, setExpAmt] = useState(""); const [expNotes, setExpNotes] = useState("");
   const [milDate, setMilDate] = useState(now.toISOString().slice(0,10)); const [milPurpose, setMilPurpose] = useState(""); const [milMiles, setMilMiles] = useState(""); const [milType, setMilType] = useState("Business");
 
@@ -2668,6 +2746,13 @@ function BudgetTracker({ user }) {
         <div>
           <h2 style={{ fontFamily:'Lora,Georgia,serif', fontSize:'1.4rem', fontWeight:700, color:'#0D1F3C' }}>📒 Budget Tracker</h2>
           <p style={{ fontSize:'0.8rem', color:'#7A8BA8', marginTop:2 }}>Track income, expenses, mileage & import from your bank</p>
+          <p style={{ fontSize:'0.72rem', marginTop:4, color: cloudStatus==='offline' ? '#B58A00' : '#246B52' }}>
+            {cloudStatus==='saved'   && '☁️ Synced to your account'}
+            {cloudStatus==='saving'  && '☁️ Saving…'}
+            {cloudStatus==='loading' && '☁️ Loading your data…'}
+            {cloudStatus==='offline' && '💾 Saved on this device (cloud sync off)'}
+            {cloudStatus==='idle'    && ''}
+          </p>
         </div>
         <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
           <button onClick={()=>setShowDedupe(true)} style={{ padding:'7px 12px', borderRadius:8, fontSize:'0.82rem', fontWeight:700, background:'#FDF7E8', color:'#8B6914', border:'1px solid #C9A84C', cursor:'pointer' }}>🧹 Find Duplicates</button>
