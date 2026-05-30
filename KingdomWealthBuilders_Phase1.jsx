@@ -187,6 +187,9 @@ body{font-family:'Nunito',sans-serif;background:#FAFAF6;color:#0D1F3C;line-heigh
 
 .dash-layout{display:flex;min-height:100vh;padding-top:66px}
 .sidebar{width:256px;flex-shrink:0;background:#0D1F3C;position:fixed;top:66px;bottom:0;left:0;overflow-y:auto;z-index:100;padding:1.5rem 0}
+.mobile-bar{display:none}
+.mobile-backdrop{display:none}
+.sidebar-close{display:none}
 .sb-avatar{margin:0 1.1rem 1.5rem;display:flex;align-items:center;gap:10px;padding:1rem;background:rgba(255,255,255,0.06);border-radius:10px;border:1px solid rgba(255,255,255,0.1)}
 .sb-av-circle{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#C9A84C,#E8C97A);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.9rem;color:#0D1F3C;flex-shrink:0}
 .sb-av-name{font-size:0.88rem;font-weight:700;color:white;line-height:1.2}
@@ -307,7 +310,14 @@ body{font-family:'Nunito',sans-serif;background:#FAFAF6;color:#0D1F3C;line-heigh
   .features-grid{grid-template-columns:1fr 1fr}
   .stats-row{grid-template-columns:1fr 1fr}
   .dash-grid-2,.dash-grid-3{grid-template-columns:1fr}
-  .sidebar{display:none}
+  /* Mobile nav: hamburger bar + slide-in drawer (instead of hiding nav) */
+  .mobile-bar{display:flex; align-items:center; gap:12px; position:sticky; top:0; z-index:90; background:#0D1F3C; padding:10px 14px; margin:-1.4rem -1.4rem 1rem -1.4rem}
+  .mobile-menu-btn{background:#1a3354; color:#fff; border:none; border-radius:8px; padding:10px 14px; font-size:15px; font-weight:600; cursor:pointer}
+  .mobile-bar-title{color:#fff; font-weight:600; font-size:0.95rem}
+  .sidebar{display:block; transform:translateX(-100%); transition:transform 0.25s ease; top:0; width:80%; max-width:300px; padding-top:1rem}
+  .sidebar.sidebar-open{transform:translateX(0)}
+  .sidebar-close{display:block; position:absolute; top:10px; right:12px; background:none; border:none; color:#fff; font-size:22px; cursor:pointer; z-index:1}
+  .mobile-backdrop{display:block; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:99}
   .dash-main{margin-left:0}
   .form-row{grid-template-columns:1fr}
   .nav-center{display:none}
@@ -1931,6 +1941,7 @@ function QuickEditPanel({ plan, onClose, onSave }) {
 
 function Dashboard({ plan, user, dashTab, setDashTab, checked, setChecked, checkinChecked, setCheckinChecked, onLogout, onRedo, onPlanUpdate }) {
   const [showQuickEdit, setShowQuickEdit] = React.useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const sidebarItems = [
     { id: "overview", icon: "🏠", label: "Overview" },
     { id: "networth", icon: "💎", label: "Net Worth" },
@@ -1953,7 +1964,17 @@ function Dashboard({ plan, user, dashTab, setDashTab, checked, setChecked, check
 
   return (
     <div className="dash-layout">
-      <aside className="sidebar">
+      {/* Mobile top bar with hamburger — only visible on small screens */}
+      <div className="mobile-bar">
+        <button className="mobile-menu-btn" onClick={() => setMobileMenuOpen(true)} aria-label="Open menu">☰ Menu</button>
+        <span className="mobile-bar-title">👑 Kingdom Wealth</span>
+      </div>
+
+      {/* Backdrop behind the drawer */}
+      {mobileMenuOpen && <div className="mobile-backdrop" onClick={() => setMobileMenuOpen(false)}></div>}
+
+      <aside className={`sidebar ${mobileMenuOpen ? "sidebar-open" : ""}`}>
+        <button className="sidebar-close" onClick={() => setMobileMenuOpen(false)} aria-label="Close menu">✕</button>
         <div className="sb-avatar">
           <div className="sb-av-circle">{(user?.name || plan.user.name || "K")[0].toUpperCase()}</div>
           <div>
@@ -1963,13 +1984,13 @@ function Dashboard({ plan, user, dashTab, setDashTab, checked, setChecked, check
         </div>
         <div className="sb-section-label">Dashboard</div>
         {sidebarItems.map(item => (
-          <div key={item.id} className={`sb-item ${dashTab === item.id ? "active" : ""}`} onClick={() => setDashTab(item.id)}>
+          <div key={item.id} className={`sb-item ${dashTab === item.id ? "active" : ""}`} onClick={() => { setDashTab(item.id); setMobileMenuOpen(false); }}>
             <span className="sb-icon">{item.icon}</span>
             <span>{item.label}</span>
           </div>
         ))}
         <div className="sb-section-label">Account</div>
-        <div className="sb-item" onClick={() => setShowQuickEdit(true)}><span className="sb-icon">✏️</span><span>Update My Finances</span></div>
+        <div className="sb-item" onClick={() => { setShowQuickEdit(true); setMobileMenuOpen(false); }}><span className="sb-icon">✏️</span><span>Update My Finances</span></div>
         <div className="sb-item" onClick={onRedo}><span className="sb-icon">🔄</span><span>Redo Full Intake</span></div>
         <div className="sb-item" onClick={onLogout}><span className="sb-icon">🚪</span><span>Sign Out</span></div>
       </aside>
