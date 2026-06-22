@@ -2944,11 +2944,12 @@ function BudgetTracker({ user }) {
                       <span style={{ fontSize:'0.85rem', fontWeight:700, color:'#8B6914' }}>{selectedHere.length} selected</span>
                       <div style={{ display:'flex', gap:6, alignItems:'center', flexWrap:'wrap' }}>
                         <select onChange={(e) => {
-                          if (!e.target.value) return;
-                          if (confirm(`Change category to "${e.target.value}" for ${selectedHere.length} items?`)) {
-                            setIncome(prev => prev.map(r => selectedHere.includes(r.id) ? { ...r, cat: e.target.value } : r));
-                          }
+                          const newCat = e.target.value;
                           e.target.value = '';
+                          if (!newCat) return;
+                          if (confirm(`Change category to "${newCat}" for ${selectedHere.length} items?`)) {
+                            setIncome(prev => prev.map(r => selectedHere.includes(r.id) ? { ...r, cat: newCat } : r));
+                          }
                         }} style={{ padding:'5px 10px', borderRadius:6, fontSize:'0.78rem', fontWeight:600, background:'#fff', color:'#0D1F3C', border:'1px solid #C9A84C', cursor:'pointer' }} defaultValue="">
                           <option value="">📂 Change category...</option>
                           {['Primary job','Side business','Freelance','Rental income','Investment','Benefits / Support','Gift / other','Other income'].map(c => <option key={c} value={c}>{c}</option>)}
@@ -3132,11 +3133,12 @@ function BudgetTracker({ user }) {
                       <span style={{ fontSize:'0.85rem', fontWeight:700, color:'#8B6914' }}>{selectedHere.length} selected</span>
                       <div style={{ display:'flex', gap:6, alignItems:'center', flexWrap:'wrap' }}>
                         <select onChange={(e) => {
-                          if (!e.target.value) return;
-                          if (confirm(`Change category to "${e.target.value}" for ${selectedHere.length} items?`)) {
-                            setExpenses(prev => prev.map(r => selectedHere.includes(r.id) ? { ...r, cat: e.target.value } : r));
-                          }
+                          const newCat = e.target.value;
                           e.target.value = '';
+                          if (!newCat) return;
+                          if (confirm(`Change category to "${newCat}" for ${selectedHere.length} items?`)) {
+                            setExpenses(prev => prev.map(r => selectedHere.includes(r.id) ? { ...r, cat: newCat } : r));
+                          }
                         }} style={{ padding:'5px 10px', borderRadius:6, fontSize:'0.78rem', fontWeight:600, background:'#fff', color:'#0D1F3C', border:'1px solid #C9A84C', cursor:'pointer' }} defaultValue="">
                           <option value="">📂 Change category...</option>
                           {EXPENSE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
