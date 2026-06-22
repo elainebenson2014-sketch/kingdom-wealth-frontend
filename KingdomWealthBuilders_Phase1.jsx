@@ -2261,7 +2261,7 @@ function AICoach({ user, plan }) {
 
   const hints = ["Walk me through my budget", "How do I stay motivated?", "Explain the snowball method", "Give me a scripture for today"];
 
-  const send = async (text) => {
+const send = async (text) => {
     const content = (text || input).trim();
     if (!content || loading) return;
     setInput("");
@@ -2287,7 +2287,7 @@ function AICoach({ user, plan }) {
     setMsgs(prev => [...prev, { role: "assistant", content: reply, time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) }]);
     setLoading(false);
   };
-
+  
   const renderContent = content => content.split("\n").map((line, i) => {
     const html = line.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>").replace(/\*(.*?)\*/g, "<em>$1</em>");
     return <p key={i} dangerouslySetInnerHTML={{ __html: html }} style={{ marginBottom: line === "" ? 0 : "0.25em" }} />;
