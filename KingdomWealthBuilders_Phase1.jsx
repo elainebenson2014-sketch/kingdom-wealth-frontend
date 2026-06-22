@@ -2266,12 +2266,24 @@ function AICoach({ user, plan }) {
     if (!content || loading) return;
     setInput("");
     const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    const context = `User's financial snapshot: Income $${plan.income}/mo, Expenses $${plan.expenses}/mo, Debt $${plan.debt}, Savings $${plan.savings}${plan.user?.creditScore ? `, Credit Score: ${plan.user.creditScore}` : ''}.`;
     const newMsgs = [...msgs, { role: "user", content, time }];
     setMsgs(newMsgs);
     setLoading(true);
-   const apiMsgs = [{ role: "user", content: `[Context: ${context}]\n\n${content}` }, ...newMsgs.slice(1).map(m => ({ role: m.role, content: m.content }))];
-    const reply = await askCoach(apiMsgs, plan?.user);
+    const history = newMsgs.slice(1, -1).map(m => ({ role: m.role, content: m.content }));
+    let reply;
+    try {
+      const sb = await getSupabase();
+      const { data: { session } } = await sb.auth.getSession();
+      const res = await fetch("/api/coach", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: content, history, access_token: session?.access_token }),
+      });
+      const d = await res.json();
+      reply = d.reply || "I'm here for you — could you tell me a little more about what you'd like help with?";
+    } catch (e) {
+      reply = "I'm sorry — something went wrong on my end. Please try again in a moment. 🙏";
+    }
     setMsgs(prev => [...prev, { role: "assistant", content: reply, time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) }]);
     setLoading(false);
   };
