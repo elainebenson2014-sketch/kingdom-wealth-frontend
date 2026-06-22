@@ -2510,6 +2510,17 @@ const EXPENSE_CATEGORIES = [
 ];
 const MONTHS_LIST = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
+// Parse a "YYYY-MM-DD" string as a LOCAL date. (new Date("2026-06-01") is read as
+// UTC midnight = the evening BEFORE in US time zones, so the 1st of a month can
+// slip into the previous month. This keeps the calendar day local.)
+function parseLocalDate(s) {
+  if (typeof s === 'string') {
+    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  }
+  return new Date(s);
+}
+
 function BudgetTracker({ user }) {
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth());
@@ -2542,7 +2553,7 @@ function BudgetTracker({ user }) {
     if (typeof r.m === 'number' && typeof r.y === 'number') return { ...r, key: `${r.y}-${r.m}` };
     if (r.date) {
       try {
-        const dt = new Date(r.date);
+        const dt = parseLocalDate(r.date);
         if (!isNaN(dt.getTime())) return { ...r, key: `${dt.getFullYear()}-${dt.getMonth()}`, m: dt.getMonth(), y: dt.getFullYear() };
       } catch {}
     }
@@ -2932,6 +2943,16 @@ function BudgetTracker({ user }) {
                     <div style={{ background:'#FDF7E8', padding:'10px 14px', borderBottom:'1px solid #E8C97A', display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:8 }}>
                       <span style={{ fontSize:'0.85rem', fontWeight:700, color:'#8B6914' }}>{selectedHere.length} selected</span>
                       <div style={{ display:'flex', gap:6, alignItems:'center', flexWrap:'wrap' }}>
+                        <select onChange={(e) => {
+                          if (!e.target.value) return;
+                          if (confirm(`Change category to "${e.target.value}" for ${selectedHere.length} items?`)) {
+                            setIncome(prev => prev.map(r => selectedHere.includes(r.id) ? { ...r, cat: e.target.value } : r));
+                          }
+                          e.target.value = '';
+                        }} style={{ padding:'5px 10px', borderRadius:6, fontSize:'0.78rem', fontWeight:600, background:'#fff', color:'#0D1F3C', border:'1px solid #C9A84C', cursor:'pointer' }} defaultValue="">
+                          <option value="">📂 Change category...</option>
+                          {['Primary job','Side business','Freelance','Rental income','Investment','Benefits / Support','Gift / other','Other income'].map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
                         <button onClick={()=>{
                           if (confirm(`Move ${selectedHere.length} items to Transfers? (They won't count as income anymore.)`)) {
                             const itemsToMove = mInc.filter(r => selectedHere.includes(r.id));
@@ -3280,7 +3301,7 @@ function BudgetTracker({ user }) {
                     }
 
                     if (!date || miles === 0) return null;
-                    const dt = new Date(date);
+                    const dt = parseLocalDate(date);
                     const m = dt.getMonth();
                     const y = dt.getFullYear();
                     const rowKey = `${y}-${m}`;
@@ -3354,6 +3375,28 @@ function BudgetTracker({ user }) {
         };
         // Auto-categorize from description
         const guessCategory = (desc, isIncome) => {
+          // Category memory: reuse the category you last gave this merchant.
+          const normDesc = (s) => {
+            let str = (s || '').toLowerCase();
+            const numIdx = str.search(/[0-9]/);          // store #, dates, amounts trail the name
+            if (numIdx >= 3) str = str.slice(0, numIdx);  // keep just the merchant-name part
+            return str.replace(/[^a-z ]+/g, ' ').replace(/\s+/g, ' ').trim().split(' ').slice(0, 3).join(' ');
+          };
+          const learnedCategory = (txt, inc) => {
+            const sig = normDesc(txt);
+            if (!sig) return null;
+            const source = inc ? income : expenses;
+            for (let i = source.length - 1; i >= 0; i--) {
+              const r = source[i];
+              if (!r) continue;
+              const rc = r.cat;
+              if (!rc || rc === 'Other' || rc === 'Other income') continue;
+              if (normDesc(inc ? r.src : r.desc) === sig) return rc;
+            }
+            return null;
+          };
+          const remembered = learnedCategory(desc, isIncome);
+          if (remembered) return remembered;
           if (isIncome) return null;
           const d = (desc || '').toLowerCase();
           if (/(walmart|kroger|heb|aldi|safeway|publix|whole foods|trader joe|food|grocery|grocer|costco|sams club|sam's club)/i.test(d)) return 'Food & groceries';
@@ -3379,14 +3422,14 @@ function BudgetTracker({ user }) {
         const importedCount = bankRows.filter(r => r.imported).length;
         const handleImport = (br, asIncome, customCat) => {
           const date = br.date;
-          const dt = new Date(date);
+          const dt = parseLocalDate(date);
           const m = dt.getMonth();
           const y = dt.getFullYear();
           const rowKey = `${y}-${m}`;
           const amt = Math.abs(parseFloat(br.amt) || 0);
           if (amt === 0) return;
           if (asIncome) {
-            setIncome(prev => [...prev, { id: Date.now()+Math.random(), key: rowKey, date, src: br.desc, cat: 'Other income', amt, m, y, account: importAccount }]);
+            setIncome(prev => [...prev, { id: Date.now()+Math.random(), key: rowKey, date, src: br.desc, cat: guessCategory(br.desc, true) || 'Other income', amt, m, y, account: importAccount }]);
           } else {
             const cat = customCat || guessCategory(br.desc, false);
             setExpenses(prev => [...prev, { id: Date.now()+Math.random(), key: rowKey, date, desc: br.desc, cat, amt, m, y, account: importAccount }]);
@@ -3400,7 +3443,7 @@ function BudgetTracker({ user }) {
           const updatedBankRows = bankRows.map(r => {
             if (dismissedBank.includes(r.id) || r.imported) return r;
             const date = r.date;
-            const dt = new Date(date);
+            const dt = parseLocalDate(date);
             const m = dt.getMonth();
             const y = dt.getFullYear();
             const rowKey = `${y}-${m}`;
@@ -3416,7 +3459,7 @@ function BudgetTracker({ user }) {
               return { ...r, imported: true, isTransfer: true };
             }
             if (parseFloat(r.amt) > 0) {
-              newIncomes.push({ id: Date.now()+Math.random()+Math.random(), key: rowKey, date, src: r.desc, cat: 'Other income', amt, m, y, account: importAccount });
+              newIncomes.push({ id: Date.now()+Math.random()+Math.random(), key: rowKey, date, src: r.desc, cat: guessCategory(r.desc, true) || 'Other income', amt, m, y, account: importAccount });
             } else {
               const cat = r.customCat || guessCategory(r.desc, false);
               newExpenses.push({ id: Date.now()+Math.random()+Math.random(), key: rowKey, date, desc: r.desc, cat, amt, m, y, account: importAccount });
@@ -3552,7 +3595,7 @@ function BudgetTracker({ user }) {
                   const suggestedCat = isIncome ? null : guessCategory(br.desc, false);
                   const handleMarkAsTransfer = () => {
                     const date = br.date;
-                    const dt = new Date(date);
+                    const dt = parseLocalDate(date);
                     const m = dt.getMonth();
                     const y = dt.getFullYear();
                     const rowKey = `${y}-${m}`;
