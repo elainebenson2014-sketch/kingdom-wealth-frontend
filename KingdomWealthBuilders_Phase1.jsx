@@ -401,87 +401,7 @@ body{font-family:'Nunito',sans-serif;background:#FAFAF6;color:#0D1F3C;line-heigh
 @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
 `;
 
-const SYSTEM_PROMPT = `You are the Kingdom Wealth Builders AI Coach — a warm, expert, faith-centered financial stewardship coach.
-
-Personality:
-- Deeply encouraging, never shame-based or cold
-- Blend biblical wisdom naturally with practical financial expertise  
-- Teach one concept at a time — never overwhelm
-- Celebrate every small win enthusiastically
-- Reference scripture naturally when relevant
-
-Your Phase 1 MVP capabilities:
-1. Build personalized budgets (50/30/20 or 10-10-80 Kingdom method)
-2. Create debt reduction strategies (snowball method preferred)
-3. Design savings goals with monthly contribution plans
-4. Teach financial literacy one lesson at a time
-5. Provide weekly accountability check-ins
-6. Share stewardship devotionals and scripture
-
-When someone shares their financial situation:
-- Acknowledge their courage
-- Identify the most urgent issue  
-- Give ONE clear, actionable next step
-- End with an uplifting word or scripture
-
-Format with **bold** for key points, use simple bullet lists, keep responses warm and human.`;
-
-async function askCoach(messages, userContext) {
-  const personalityGuide = {
-    anxious: "This person is anxious about money — be extra gentle, reassuring, and calm. Never overwhelm. Focus on one step at a time.",
-    spender: "This person is a natural spender — celebrate their wins generously, use motivating language, and make saving feel exciting not restrictive.",
-    saver: "This person is already a saver — challenge them to give more generously and invest boldly. They're ready for the next level.",
-    confused: "This person feels confused about money — use very simple language, avoid jargon, and explain everything step by step.",
-    motivated: "This person is highly motivated — give them bold, ambitious targets and celebrate their drive. Match their energy.",
-    rebuilding: "This person is rebuilding after setbacks — lead with grace, zero shame, and radical encouragement. Every step forward is a miracle.",
-  };
-  const faithGuide = {
-    active: "They are an active tither — reference biblical stewardship naturally and frequently.",
-    tithing_start: "They want to start tithing — gently encourage giving as a first step, not last.",
-    faith_guided: "Faith guides them but they don't tithe yet — reference scripture naturally, encourage generosity without pressure.",
-    exploring: "They are exploring faith-based finance — introduce biblical principles gently as wisdom, not dogma.",
-    secular: "They are not religious — focus on practical financial wisdom. Skip religious references unless they bring it up.",
-  };
-  const systemPrompt = `You are the Kingdom Wealth Builders AI Coach — a warm, expert, faith-centered financial stewardship coach.
-${userContext?.moneyPersonality ? `PERSONALITY: ${personalityGuide[userContext.moneyPersonality] || ""}` : ""}
-${userContext?.faithLevel ? `FAITH: ${faithGuide[userContext.faithLevel] || ""}` : ""}
-Be encouraging, practical, and warm. Give ONE clear actionable next step. Format with **bold** for key points.`;
-
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
-    // Use Anthropic API directly via artifact proxy
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": "proxy",
-        "anthropic-version": "2023-06-01",
-        "anthropic-dangerous-direct-browser-access": "true",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 1000,
-        system: systemPrompt,
-        messages: messages.map(m => ({ role: m.role, content: m.content })).slice(-10),
-      }),
-      signal: controller.signal,
-    });
-    clearTimeout(timeout);
-    const d = await res.json();
-    if (d.content?.[0]?.text) return d.content[0].text;
-    throw new Error("No content");
-  } catch(e) {
-    // Smart fallback responses
-    const input = messages[messages.length-1]?.content?.toLowerCase() || "";
-    if (input.includes("budget") || input.includes("spend")) return "**For your budget**, start by tracking every dollar this week. Use the 10-10-80 rule: Give 10%, Save 10%, Live on 80%. Even starting at 5-5-90 builds powerful momentum. Which expense category would you like to tackle first? 💰";
-    if (input.includes("debt") || input.includes("snowball")) return "**The Debt Snowball Method:** List your debts smallest to largest. Pay minimums on all, then attack the smallest with everything extra. When it's gone, roll that payment to the next. **This week's action:** Make one extra payment on your smallest debt — even $25 matters! 💳";
-    if (input.includes("motivat") || input.includes("discourag")) return "**You are already ahead** — most people never face their finances honestly. Every consistent step forward compounds. \"The plans of the diligent lead to profit.\" (Proverbs 21:5) **This week:** Complete just ONE action from your dashboard. Momentum builds from small wins. 👑";
-    if (input.includes("scripture") || input.includes("bible") || input.includes("faith")) return "Here's a powerful stewardship scripture for you:\n\n**\"Honor the Lord with your wealth, with the firstfruits of all your crops; then your barns will be filled to overflowing.\"** — Proverbs 3:9-10\n\nGiving first — before bills, before spending — is an act of faith that God honors. Even giving $10 when money is tight builds a generous spirit. 🙏";
-    if (input.includes("saving") || input.includes("emergency")) return "**Building your Emergency Fund** is priority #1 before aggressive debt payoff. Target $1,000 first — this prevents new debt when life happens.\n\n**This week:** Open a separate savings account and set up an automatic transfer of even $25/paycheck. Automation removes the decision. 🛡️";
-    return "**Great question!** Here's my Kingdom Wealth advice:\n\nFocus on one thing this week — consistency beats intensity every time. Review your top priority on the dashboard, take the 7-day action step, and come back to tell me how it went.\n\n\"Commit to the Lord whatever you do, and he will establish your plans.\" — Proverbs 16:3 👑";
-  }
-}
+// (Legacy in-browser AI Coach removed — the Coach now runs server-side via /api/coach.js)
 
 function buildPlan(form) {
   const toMonthly = (amt, freq) => { const n=parseFloat(amt)||0; if(freq==="weekly")return n*4.33; if(freq==="biweekly")return n*2.167; if(freq==="annual")return n/12; return n; };
@@ -955,8 +875,7 @@ function PoliciesPage() {
         {subHd("Third-party services")}
         {bullet("Supabase — secure database and authentication")}
         {bullet("Anthropic (Claude AI) — powers the AI Coach conversations")}
-        {bullet("Vercel — hosts the web application")}
-        {bullet("Railway — hosts the backend API")}
+        {bullet("Vercel — hosts the web application and serverless functions")}
 
         {sectionHd("Terms of Service")}
         {subHd("Educational use only")}
