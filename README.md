@@ -55,7 +55,7 @@ You should see:
 ```
 👑  Kingdom Wealth Builders API
 🚀  Server running on http://localhost:4000
-🤖  AI Coach: Anthropic claude-sonnet-4-20250514
+🤖  AI Coach: Anthropic claude-sonnet-4-6
 🔐  JWT auth enabled
 🛡️   Rate limiting active (10 AI calls/min)
 ```
